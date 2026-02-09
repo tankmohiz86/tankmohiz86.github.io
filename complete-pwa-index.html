@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#5c6ac4">
+    <meta name="description" content="Split expenses with friends easily">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Expense Splitter">
+    
+    <title>Expense Splitter - Split Bills with Friends</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* Install prompt styles */
+        .install-prompt {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none;
+            max-width: 90%;
+        }
+        
+        .install-prompt.show {
+            display: block;
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                transform: translateX(-50%) translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Splash screen */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s;
+        }
+        
+        .splash-screen.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-500 to-purple-700 min-h-screen p-5">
+    
+    <!-- Splash Screen -->
+    <div class="splash-screen" id="splash">
+        <div class="text-8xl mb-4">💰</div>
+        <h1 class="text-white text-3xl font-bold">Expense Splitter</h1>
+        <p class="text-white text-sm opacity-80 mt-2">Loading...</p>
+    </div>
+
+    <!-- Install Prompt -->
+    <div class="install-prompt" id="installPrompt">
+        <div class="flex items-center gap-3">
+            <div class="text-3xl">💰</div>
+            <div class="flex-1">
+                <h3 class="font-bold text-gray-800">Install App</h3>
+                <p class="text-sm text-gray-600">Add to home screen for quick access</p>
+            </div>
+            <button onclick="installApp()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700">
+                Install
+            </button>
+            <button onclick="closeInstallPrompt()" class="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+    </div>
+
+    <div id="app"></div>
+
+    <script>
+        // PWA Install functionality
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install prompt after 3 seconds
+            setTimeout(() => {
+                const prompt = document.getElementById('installPrompt');
+                if (prompt) prompt.classList.add('show');
+            }, 3000);
+        });
+
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                    }
+                    deferredPrompt = null;
+                    closeInstallPrompt();
+                });
+            }
+        }
+
+        function closeInstallPrompt() {
+            const prompt = document.getElementById('installPrompt');
+            if (prompt) prompt.classList.remove('show');
+        }
+
+        // Hide splash screen after content loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splash');
+                if (splash) splash.classList.add('hide');
+            }, 1000);
+        });
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker registered:', registration);
+                })
+                .catch(error => {
+                    console.log('Service Worker registration failed:', error);
+                });
+        }
+    </script>
+    
+    <script>
+        // Simple state management
+        let state = {
+            currentUser: null,
+            users: [],
+            people: [],
+            expenses: [],
+            newPersonName: '',
+            activeTab: 'expenses',
+            showShareModal: false,
+            shareCode: '',
+            importCode: '',
+            loginEmail: '',
+            loginPassword: '',
+            registerName: '',
+            registerEmail: '',
+            registerPassword: '',
+            registerConfirmPassword: '',
+            showingLogin: true,
+            newExpense: {
+                description: '',
+                amount: '',
+                paidBy: '',
+                splitWith: []
+            }
+        };
+
+        // Email validation
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Load data from localStorage on startup
+        function loadData() {
+            try {
+                const savedUsers = localStorage.getItem('expense-users');
+                const savedPeople = localStorage.getItem('expense-people');
+                const savedExpenses = localStorage.getItem('expense-expenses');
+                const savedCurrentUser = localStorage.getItem('expense-current-user');
+                
+                if (savedUsers) state.users = JSON.parse(savedUsers);
+                if (savedPeople) state.people = JSON.parse(savedPeople);
+                if (savedExpenses) state.expenses = JSON.parse(savedExpenses);
+                if (savedCurrentUser) {
+                    state.currentUser = JSON.parse(savedCurrentUser);
+                }
+            } catch (err) {
+                console.error('Load error:', err);
+            }
+        }
+
+        // Save to localStorage
+        function saveData() {
+            localStorage.setItem('expense-users', JSON.stringify(state.users));
+            localStorage.setItem('expense-people', JSON.stringify(state.people));
+            localStorage.setItem('expense-expenses', JSON.stringify(state.expenses));
+            if (state.currentUser) {
+                localStorage.setItem('expense-current-user', JSON.stringify(state.currentUser));
+            }
+        }
+
+        function register() {
+            // Validation
+            if (!state.registerName.trim()) {
+                alert('Please enter your name');
+                return;
+            }
+
+            if (!state.registerEmail.trim()) {
+                alert('Please enter your email');
+                return;
+            }
+
+            if (!isValidEmail(state.registerEmail)) {
+                alert('Please enter a valid email address');
+                return;
+            }
+
+            if (!state.registerPassword.trim()) {
+                alert('Please enter a password');
+                return;
+            }
+
+            if (state.registerPassword.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+
+            if (state.registerPassword !== state.registerConfirmPassword) {
+                alert('Passwords do not match!');
+                return;
+            }
+
+            // Check if email already exists
+            if (state.users.find(u => u.email.toLowerCase() === state.registerEmail.toLowerCase())) {
+                alert('Email already registered! Please login instead.');
+                return;
+            }
+
+            const newUser = {
+                id: Date.now().toString(),
+                name: state.registerName.trim(),
+                email: state.registerEmail.trim().toLowerCase(),
+                password: state.registerPassword.trim(),
+                createdAt: new Date().toISOString()
+            };
+
+            state.users.push(newUser);
+            
+            // Also add to people list so they can be part of expenses
+            state.people.push({
+                id: newUser.id,
+                name: newUser.name,
+                email: newUser.email
+            });
+
+            state.currentUser = {
+                id: newUser.id,
+                name: newUser.name,
+                email: newUser.email
+            };
+
+            state.registerName = '';
+            state.registerEmail = '';
+            state.registerPassword = '';
+            state.registerConfirmPassword = '';
+            
+            saveData();
+            alert('Registration successful! Welcome, ' + newUser.name + '!');
+            render();
+        }
+
+        function login() {
+            if (!state.loginEmail.trim()) {
+                alert('Please enter your email');
+                return;
+            }
+
+            if (!isValidEmail(state.loginEmail)) {
+                alert('Please enter a valid email address');
+                return;
+            }
+
+            if (!state.loginPassword.trim()) {
+                alert('Please enter your password');
+                return;
+            }
+
+            const user = state.users.find(u => 
+                u.email.toLowerCase() === state.loginEmail.toLowerCase() && 
+                u.password === state.loginPassword
+            );
+
+            if (!user) {
+                alert('Invalid email or password! Please try again or register.');
+                return;
+            }
+
+            state.currentUser = {
+                id: user.id,
+                name: user.name,
+                email: user.email
+            };
+
+            state.loginEmail = '';
+            state.loginPassword = '';
+            
+            saveData();
+            render();
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                state.currentUser = null;
+                localStorage.removeItem('expense-current-user');
+                render();
+            }
+        }
+
+        function addPerson() {
+            if (!state.newPersonName.trim()) return;
+
+            // Check if person already exists
+            if (state.people.find(p => p.name.toLowerCase() === state.newPersonName.toLowerCase())) {
+                alert('Person already exists!');
+                return;
+            }
+
+            state.people.push({
+                id: Date.now().toString(),
+                name: state.newPersonName.trim(),
+                email: null // Non-user people don't have email
+            });
+            
+            state.newPersonName = '';
+            saveData();
+            render();
+        }
+
+        function removePerson(id) {
+            // Don't allow removing registered users
+            if (state.users.find(u => u.id === id)) {
+                alert('Cannot remove registered users!');
+                return;
+            }
+
+            if (!confirm('Remove this person? Their expenses will remain but be shown as "Unknown".')) return;
+            state.people = state.people.filter(p => p.id !== id);
+            saveData();
+            render();
+        }
+
+        function addExpense() {
+            if (!state.newExpense.description || !state.newExpense.amount || 
+                !state.newExpense.paidBy || state.newExpense.splitWith.length === 0) {
+                alert('Please fill all fields and select people to split with');
+                return;
+            }
+
+            state.expenses.push({
+                id: Date.now().toString(),
+                description: state.newExpense.description,
+                amount: parseFloat(state.newExpense.amount),
+                paidBy: state.newExpense.paidBy,
+                splitWith: [...state.newExpense.splitWith],
+                date: new Date().toISOString(),
+                addedBy: state.currentUser.id
+            });
+
+            state.newExpense = {
+                description: '',
+                amount: '',
+                paidBy: '',
+                splitWith: []
+            };
+            
+            saveData();
+            render();
+        }
+
+        function deleteExpense(id) {
+            if (!confirm('Delete this expense?')) return;
+            state.expenses = state.expenses.filter(e => e.id !== id);
+            saveData();
+            render();
+        }
+
+        function toggleSplitPerson(personId) {
+            if (state.newExpense.splitWith.includes(personId)) {
+                state.newExpense.splitWith = state.newExpense.splitWith.filter(id => id !== personId);
+            } else {
+                state.newExpense.splitWith.push(personId);
+            }
+            render();
+        }
+
+        function calculateBalances() {
+            const balances = {};
+            state.people.forEach(person => {
+                balances[person.id] = 0;
+            });
+
+            state.expenses.forEach(expense => {
+                const shareAmount = expense.amount / expense.splitWith.length;
+                balances[expense.paidBy] = (balances[expense.paidBy] || 0) + expense.amount;
+                expense.splitWith.forEach(personId => {
+                    balances[personId] = (balances[personId] || 0) - shareAmount;
+                });
+            });
+
+            return balances;
+        }
+
+        function getMyBalance() {
+            const balances = calculateBalances();
+            return balances[state.currentUser.id] || 0;
+        }
+
+        function getMySettlements() {
+            const balances = calculateBalances();
+            const myBalance = balances[state.currentUser.id] || 0;
+            const settlements = [];
+
+            if (myBalance < -0.01) {
+                // I owe money
+                Object.entries(balances).forEach(([personId, balance]) => {
+                    if (balance > 0.01 && personId !== state.currentUser.id) {
+                        const amount = Math.min(Math.abs(myBalance), balance);
+                        if (amount > 0.01) {
+                            settlements.push({
+                                type: 'owe',
+                                to: personId,
+                                amount: amount
+                            });
+                        }
+                    }
+                });
+            } else if (myBalance > 0.01) {
+                // People owe me
+                Object.entries(balances).forEach(([personId, balance]) => {
+                    if (balance < -0.01 && personId !== state.currentUser.id) {
+                        const amount = Math.min(myBalance, Math.abs(balance));
+                        if (amount > 0.01) {
+                            settlements.push({
+                                type: 'owed',
+                                from: personId,
+                                amount: amount
+                            });
+                        }
+                    }
+                });
+            }
+
+            return settlements;
+        }
+
+        function calculateSettlements() {
+            const balances = calculateBalances();
+            const settlements = [];
+            
+            const creditors = Object.entries(balances)
+                .filter(([_, amount]) => amount > 0.01)
+                .map(([id, amount]) => ({id, amount}))
+                .sort((a, b) => b.amount - a.amount);
+            
+            const debtors = Object.entries(balances)
+                .filter(([_, amount]) => amount < -0.01)
+                .map(([id, amount]) => ({id, amount: Math.abs(amount)}))
+                .sort((a, b) => b.amount - a.amount);
+
+            let i = 0, j = 0;
+            while (i < creditors.length && j < debtors.length) {
+                const amount = Math.min(creditors[i].amount, debtors[j].amount);
+                settlements.push({
+                    from: debtors[j].id,
+                    to: creditors[i].id,
+                    amount
+                });
+                creditors[i].amount -= amount;
+                debtors[j].amount -= amount;
+                if (creditors[i].amount < 0.01) i++;
+                if (debtors[j].amount < 0.01) j++;
+            }
+
+            return settlements;
+        }
+
+        function getPersonName(id) {
+            const person = state.people.find(p => p.id === id);
+            return person ? person.name : 'Unknown';
+        }
+
+        function getPersonEmail(id) {
+            const person = state.people.find(p => p.id === id);
+            return person && person.email ? person.email : null;
+        }
+
+        function generateShareCode() {
+            const data = {
+                people: state.people,
+                expenses: state.expenses,
+                users: state.users.map(u => ({
+                    id: u.id,
+                    name: u.name,
+                    email: u.email,
+                    // Don't share passwords for security
+                })),
+                version: 3
+            };
+            state.shareCode = btoa(JSON.stringify(data));
+            state.showShareModal = true;
+            render();
+        }
+
+        function copyToClipboard() {
+            navigator.clipboard.writeText(state.shareCode).then(() => {
+                alert('Share code copied! Send it to your friends via WhatsApp or email.');
+            });
+        }
+
+        function importData() {
+            try {
+                const data = JSON.parse(atob(state.importCode));
+                if (data.people && data.expenses) {
+                    if (confirm('This will merge with your current data. Continue?')) {
+                        // Merge people
+                        data.people.forEach(person => {
+                            if (!state.people.find(p => p.id === person.id)) {
+                                state.people.push(person);
+                            }
+                        });
+
+                        // Merge expenses
+                        data.expenses.forEach(expense => {
+                            if (!state.expenses.find(e => e.id === expense.id)) {
+                                state.expenses.push(expense);
+                            }
+                        });
+
+                        // Note: Users from share code won't have passwords
+                        // They need to register separately
+
+                        state.importCode = '';
+                        saveData();
+                        alert('Data imported successfully! Note: Other users need to register separately on their devices.');
+                        state.activeTab = 'expenses';
+                        render();
+                    }
+                } else {
+                    alert('Invalid share code');
+                }
+            } catch (err) {
+                alert('Invalid share code format');
+            }
+        }
+
+        function renderLoginScreen() {
+            return `
+                <div class="max-w-md mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-6 text-center">
+                        <h1 class="text-3xl font-bold mb-2">💰 Expense Splitter</h1>
+                        <p class="text-sm opacity-90">Login or Register to Continue</p>
+                    </div>
+
+                    <div class="flex border-b border-gray-200">
+                        <button 
+                            onclick="state.showingLogin = true; render()"
+                            class="flex-1 py-4 text-center font-semibold transition-all border-b-4 ${
+                                state.showingLogin 
+                                    ? 'text-indigo-600 border-indigo-600 bg-white' 
+                                    : 'text-gray-600 border-transparent hover:bg-gray-50'
+                            }">
+                            Login
+                        </button>
+                        <button 
+                            onclick="state.showingLogin = false; render()"
+                            class="flex-1 py-4 text-center font-semibold transition-all border-b-4 ${
+                                !state.showingLogin 
+                                    ? 'text-indigo-600 border-indigo-600 bg-white' 
+                                    : 'text-gray-600 border-transparent hover:bg-gray-50'
+                            }">
+                            Register
+                        </button>
+                    </div>
+
+                    <div class="p-8">
+                        ${state.showingLogin ? `
+                            <h2 class="text-2xl font-bold mb-6 text-gray-800">Login</h2>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                                <input 
+                                    type="email" 
+                                    placeholder="your.email@example.com"
+                                    value="${state.loginEmail}"
+                                    oninput="state.loginEmail = this.value"
+                                    onkeypress="event.key === 'Enter' && document.getElementById('login-password').focus()"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+                                />
+                            </div>
+
+                            <div class="mb-6">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                                <input 
+                                    type="password"
+                                    id="login-password"
+                                    placeholder="Enter your password"
+                                    value="${state.loginPassword}"
+                                    oninput="state.loginPassword = this.value"
+                                    onkeypress="event.key === 'Enter' && login()"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+                                />
+                            </div>
+
+                            <button 
+                                onclick="login()"
+                                class="w-full py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
+                            >
+                                Login
+                            </button>
+                        ` : `
+                            <h2 class="text-2xl font-bold mb-6 text-gray-800">Register</h2>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="John Doe"
+                                    value="${state.registerName}"
+                                    oninput="state.registerName = this.value"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+                                />
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                                <input 
+                                    type="email" 
+                                    placeholder="your.email@example.com"
+                                    value="${state.registerEmail}"
+                                    oninput="state.registerEmail = this.value"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+                                />
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                                <input 
+                                    type="password" 
+                                    placeholder="At least 6 characters"
+                                    value="${state.registerPassword}"
+                                    oninput="state.registerPassword = this.value"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+                                />
+                            </div>
+
+                            <div class="mb-6">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                                <input 
+                                    type="password" 
+                                    placeholder="Re-enter password"
+                                    value="${state.registerConfirmPassword}"
+                                    oninput="state.registerConfirmPassword = this.value"
+                                    onkeypress="event.key === 'Enter' && register()"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+                                />
+                            </div>
+
+                            <button 
+                                onclick="register()"
+                                class="w-full py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
+                            >
+                                Register
+                            </button>
+
+                            <div class="mt-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                                <p class="text-sm text-blue-800">
+                                    <strong>Note:</strong> When you register, you'll automatically be added to the people list so others can split expenses with you!
+                                </p>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            
+            // Show login screen if not logged in
+            if (!state.currentUser) {
+                app.innerHTML = renderLoginScreen();
+                return;
+            }
+
+            app.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden">
+                    <!-- Header -->
+                    <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <div>
+                                <h1 class="text-3xl font-bold">💰 Expense Splitter</h1>
+                                <p class="text-sm opacity-90 mt-1">Welcome, ${state.currentUser.name}!</p>
+                                <p class="text-xs opacity-75 mt-1">${state.currentUser.email}</p>
+                            </div>
+                            <button 
+                                onclick="logout()"
+                                class="bg-white bg-opacity-20 px-4 py-2 rounded-lg text-sm hover:bg-opacity-30 transition-all"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                        <div class="flex gap-2 mt-3">
+                            <button 
+                                onclick="generateShareCode()"
+                                class="flex-1 bg-white bg-opacity-20 px-4 py-2 rounded-full text-xs hover:bg-opacity-30 transition-all"
+                            >
+                                📤 Share Data
+                            </button>
+                            ${(() => {
+                                const myBalance = getMyBalance();
+                                return `
+                                    <div class="flex-1 bg-white bg-opacity-20 px-4 py-2 rounded-full text-xs text-center">
+                                        ${myBalance > 0.01 ? 'You are owed: +$' : myBalance < -0.01 ? 'You owe: -$' : 'Settled: $'}${Math.abs(myBalance).toFixed(2)}
+                                    </div>
+                                `;
+                            })()}
+                        </div>
+                    </div>
+
+                    <!-- Share Modal -->
+                    ${state.showShareModal ? `
+                        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="event.target === this && (state.showShareModal = false, render())">
+                            <div class="bg-white rounded-2xl p-6 max-w-md w-full" onclick="event.stopPropagation()">
+                                <h3 class="text-xl font-bold mb-4 text-gray-800">Share Your Expenses</h3>
+                                <p class="text-sm text-gray-600 mb-3">Copy this code and send it to your friends via WhatsApp or Email:</p>
+                                <textarea readonly class="w-full h-32 p-3 border-2 border-gray-200 rounded-lg font-mono text-xs mb-3">${state.shareCode}</textarea>
+                                <div class="flex gap-2">
+                                    <button onclick="copyToClipboard()" class="flex-1 bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors">
+                                        📋 Copy Code
+                                    </button>
+                                    <button onclick="state.showShareModal = false; render()" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Tabs -->
+                    <div class="flex bg-gray-100 border-b border-gray-200 overflow-x-auto">
+                        ${['expenses', 'mybalance', 'allbalances', 'people', 'import'].map(tab => `
+                            <button 
+                                onclick="state.activeTab = '${tab}'; render()"
+                                class="flex-1 py-4 text-center font-semibold transition-all border-b-4 text-xs sm:text-base whitespace-nowrap ${
+                                    state.activeTab === tab 
+                                        ? 'text-indigo-600 border-indigo-600 bg-white' 
+                                        : 'text-gray-600 border-transparent hover:bg-gray-50'
+                                }">
+                                ${tab === 'mybalance' ? 'My Balance' : tab === 'allbalances' ? 'All Balances' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <!-- Content -->
+                    <div class="p-5 min-h-[400px]">
+                        ${renderTabContent()}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTabContent() {
+            if (state.activeTab === 'expenses') {
+                return `
+                    <h2 class="text-2xl font-bold mb-5 text-gray-800">Add New Expense</h2>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                        <input 
+                            type="text" 
+                            placeholder="e.g., Dinner at restaurant"
+                            value="${state.newExpense.description}"
+                            oninput="state.newExpense.description = this.value"
+                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+                        />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Amount ($)</label>
+                        <input 
+                            type="number" 
+                            step="0.01"
+                            placeholder="0.00"
+                            value="${state.newExpense.amount}"
+                            oninput="state.newExpense.amount = this.value"
+                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+                        />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Paid By</label>
+                        <select 
+                            onchange="state.newExpense.paidBy = this.value; render()"
+                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+                        >
+                            <option value="">Select person</option>
+                            ${state.people.map(person => `
+                                <option value="${person.id}" ${state.newExpense.paidBy === person.id ? 'selected' : ''}>
+                                    ${person.name}${person.id === state.currentUser.id ? ' (You)' : ''}${person.email ? ' - ' + person.email : ''}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+
+                    ${state.people.length > 0 ? `
+                        <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                            <h4 class="font-semibold text-gray-700 mb-3">Split Between:</h4>
+                            ${state.people.map(person => `
+                                <div class="flex items-center mb-2">
+                                    <input 
+                                        type="checkbox"
+                                        id="split-${person.id}"
+                                        ${state.newExpense.splitWith.includes(person.id) ? 'checked' : ''}
+                                        onchange="toggleSplitPerson('${person.id}')"
+                                        class="mr-3 w-5 h-5 text-indigo-600 cursor-pointer"
+                                    />
+                                    <label for="split-${person.id}" class="cursor-pointer text-gray-700 flex-1">
+                                        ${person.name}${person.id === state.currentUser.id ? ' (You)' : ''}
+                                        ${person.email ? `<span class="text-xs text-gray-500 block">${person.email}</span>` : ''}
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    <button 
+                        onclick="addExpense()"
+                        class="w-full py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
+                    >
+                        Add Expense
+                    </button>
+
+                    <div class="mt-8">
+                        <h3 class="text-xl font-bold mb-4 text-gray-800">Recent Expenses</h3>
+                        ${state.expenses.length === 0 ? `
+                            <div class="text-center py-10 text-gray-400 italic">
+                                <p>No expenses yet. Add your first one above!</p>
+                            </div>
+                        ` : state.expenses.slice().reverse().map(expense => `
+                            <div class="bg-gray-50 p-4 rounded-lg mb-3 border-l-4 border-indigo-600">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex-1">
+                                        <h3 class="font-semibold text-gray-800">${expense.description}</h3>
+                                        <p class="text-sm text-gray-600">
+                                            Paid by ${getPersonName(expense.paidBy)} • Split ${expense.splitWith.length} ways
+                                        </p>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xl font-bold text-indigo-600 mb-1">
+                                            $${expense.amount.toFixed(2)}
+                                        </div>
+                                        <button 
+                                            onclick="deleteExpense('${expense.id}')"
+                                            class="bg-red-500 text-white px-3 py-1 rounded-md text-xs hover:bg-red-600 transition-colors"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                                ${expense.splitWith.includes(state.currentUser.id) ? `
+                                    <div class="text-sm text-indigo-600 font-semibold">
+                                        Your share: $${(expense.amount / expense.splitWith.length).toFixed(2)}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else if (state.activeTab === 'mybalance') {
+                const myBalance = getMyBalance();
+                const settlements = getMySettlements();
+                
+                return `
+                    <h2 class="text-2xl font-bold mb-5 text-gray-800">My Balance</h2>
+                    
+                    <div class="p-6 rounded-xl mb-6 text-white text-center ${
+                        myBalance > 0.01 
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+                            : myBalance < -0.01 
+                            ? 'bg-gradient-to-r from-red-500 to-pink-600' 
+                            : 'bg-gradient-to-r from-purple-400 to-pink-500'
+                    }">
+                        <h3 class="text-2xl font-semibold mb-2">${state.currentUser.name}</h3>
+                        <p class="text-sm opacity-90 mb-3">${state.currentUser.email}</p>
+                        <div class="text-5xl font-bold my-4">
+                            ${myBalance > 0.01 ? '+' : ''}${myBalance < -0.01 ? '-' : ''}$${Math.abs(myBalance).toFixed(2)}
+                        </div>
+                        <p class="text-lg opacity-90">
+                            ${myBalance > 0.01 ? 'You are owed' : myBalance < -0.01 ? 'You owe' : 'You are settled up'}
+                        </p>
+                    </div>
+
+                    <h3 class="text-xl font-bold mb-4 text-gray-800">Your Settlements</h3>
+                    ${settlements.length === 0 ? `
+                        <div class="text-center py-10 text-gray-400 italic">
+                            <p>You're all settled up! 🎉</p>
+                        </div>
+                    ` : settlements.map(settlement => {
+                        const otherPersonEmail = settlement.type === 'owe' ? getPersonEmail(settlement.to) : getPersonEmail(settlement.from);
+                        return `
+                            <div class="bg-blue-50 p-4 rounded-lg mb-3 border-l-4 border-indigo-600">
+                                <p class="text-gray-700 leading-relaxed">
+                                    ${settlement.type === 'owe' ? `
+                                        You owe <strong class="text-gray-900">${getPersonName(settlement.to)}</strong>
+                                        ${otherPersonEmail ? `<br/><span class="text-xs text-gray-500">${otherPersonEmail}</span>` : ''}
+                                    ` : `
+                                        <strong class="text-gray-900">${getPersonName(settlement.from)}</strong> owes you
+                                        ${otherPersonEmail ? `<br/><span class="text-xs text-gray-500">${otherPersonEmail}</span>` : ''}
+                                    `}
+                                    <br/>
+                                    <span class="text-2xl font-bold text-indigo-600">
+                                        $${settlement.amount.toFixed(2)}
+                                    </span>
+                                </p>
+                            </div>
+                        `;
+                    }).join('')}
+                `;
+            } else if (state.activeTab === 'allbalances') {
+                const balances = calculateBalances();
+                const settlements = calculateSettlements();
+                
+                return `
+                    <h2 class="text-2xl font-bold mb-5 text-gray-800">Everyone's Balance</h2>
+                    
+                    ${state.people.map(person => {
+                        const balance = balances[person.id] || 0;
+                        const colorClass = balance > 0.01 
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+                            : balance < -0.01 
+                            ? 'bg-gradient-to-r from-red-500 to-pink-600' 
+                            : 'bg-gradient-to-r from-purple-400 to-pink-500';
+                        
+                        return `
+                            <div class="p-5 rounded-xl mb-4 text-white text-center ${colorClass}">
+                                <h3 class="text-xl font-semibold mb-1">
+                                    ${person.name}${person.id === state.currentUser.id ? ' (You)' : ''}
+                                </h3>
+                                ${person.email ? `<p class="text-xs opacity-75 mb-2">${person.email}</p>` : ''}
+                                <div class="text-4xl font-bold my-3">
+                                    ${balance > 0.01 ? '+' : ''}${balance < -0.01 ? '-' : ''}$${Math.abs(balance).toFixed(2)}
+                                </div>
+                                <p class="text-sm opacity-90">
+                                    ${balance > 0.01 ? 'is owed' : balance < -0.01 ? 'owes' : 'is settled up'}
+                                </p>
+                            </div>
+                        `;
+                    }).join('')}
+
+                    <h3 class="text-xl font-bold mt-8 mb-4 text-gray-800">All Suggested Settlements</h3>
+                    ${settlements.length === 0 ? `
+                        <div class="text-center py-10 text-gray-400 italic">
+                            <p>Everyone is settled up! 🎉</p>
+                        </div>
+                    ` : settlements.map(settlement => `
+                        <div class="bg-blue-50 p-4 rounded-lg mb-3 border-l-4 border-indigo-600">
+                            <p class="text-gray-700 leading-relaxed">
+                                <strong class="text-gray-900">${getPersonName(settlement.from)}</strong>
+                                <span class="text-indigo-600 font-bold mx-2">→</span>
+                                <strong class="text-gray-900">${getPersonName(settlement.to)}</strong>
+                                <br/>
+                                <span class="text-2xl font-bold text-indigo-600">
+                                    $${settlement.amount.toFixed(2)}
+                                </span>
+                            </p>
+                        </div>
+                    `).join('')}
+                `;
+            } else if (state.activeTab === 'people') {
+                return `
+                    <h2 class="text-2xl font-bold mb-5 text-gray-800">Manage People</h2>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Add New Person (Non-User)</label>
+                        <input 
+                            type="text" 
+                            placeholder="Enter name"
+                            value="${state.newPersonName}"
+                            oninput="state.newPersonName = this.value"
+                            onkeypress="event.key === 'Enter' && addPerson()"
+                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+                        />
+                    </div>
+
+                    <button 
+                        onclick="addPerson()"
+                        class="w-full py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
+                    >
+                        Add Person
+                    </button>
+
+                    <div class="mt-8">
+                        <h3 class="text-xl font-bold mb-4 text-gray-800">All People</h3>
+                        ${state.people.length === 0 ? `
+                            <div class="text-center py-10 text-gray-400 italic">
+                                <p>No people added yet.</p>
+                            </div>
+                        ` : state.people.map(person => {
+                            const isUser = state.users.find(u => u.id === person.id);
+                            return `
+                                <div class="bg-gray-50 p-4 rounded-lg mb-3 border-l-4 ${isUser ? 'border-green-600' : 'border-indigo-600'} flex justify-between items-center">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-semibold text-gray-800">
+                                                ${person.name}${person.id === state.currentUser.id ? ' (You)' : ''}
+                                            </span>
+                                            ${isUser ? `
+                                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                                    Registered User
+                                                </span>
+                                            ` : ''}
+                                        </div>
+                                        ${person.email ? `
+                                            <p class="text-xs text-gray-500 mt-1">${person.email}</p>
+                                        ` : ''}
+                                    </div>
+                                    ${!isUser ? `
+                                        <button 
+                                            onclick="removePerson('${person.id}')"
+                                            class="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 transition-colors"
+                                        >
+                                            Remove
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <div class="mt-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                        <p class="text-sm text-blue-800">
+                            <strong>Note:</strong> Registered users (with green badge and email) cannot be removed. Only non-user people can be deleted.
+                        </p>
+                    </div>
+                `;
+            } else if (state.activeTab === 'import') {
+                return `
+                    <h2 class="text-2xl font-bold mb-5 text-gray-800">Import Shared Data</h2>
+                    <p class="text-gray-600 mb-4">Paste the share code your friend sent you:</p>
+                    
+                    <textarea 
+                        placeholder="Paste share code here..."
+                        oninput="state.importCode = this.value"
+                        class="w-full h-40 p-4 border-2 border-gray-200 rounded-lg font-mono text-sm mb-4 focus:outline-none focus:border-indigo-600"
+                    >${state.importCode}</textarea>
+
+                    <button 
+                        onclick="importData()"
+                        class="w-full py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
+                    >
+                        Import Data
+                    </button>
+
+                    <div class="mt-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                        <h4 class="font-semibold text-blue-900 mb-2">How it works:</h4>
+                        <ol class="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                            <li>Friend clicks "Share Data" button</li>
+                            <li>They copy the code and send it via WhatsApp/Email</li>
+                            <li>You paste it here and click Import</li>
+                            <li>All expenses and people will be merged!</li>
+                            <li>Other users need to register on their own devices</li>
+                        </ol>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize
+        loadData();
+        render();
+    </script>
+</body>
+</html>
