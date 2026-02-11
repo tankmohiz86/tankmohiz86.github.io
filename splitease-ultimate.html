@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0d0d14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SplitEase">
+<meta name="description" content="Smart expense splitting for groups">
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;SplitEase Pro&quot;,&quot;short_name&quot;:&quot;SplitEase&quot;,&quot;start_url&quot;:&quot;/&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#0d0d14&quot;,&quot;theme_color&quot;:&quot;#6c63ff&quot;}">
+<title>SplitEase Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Instrument+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root {
+  --bg:#0d0d14; --s1:#141420; --s2:#1a1a2e; --s3:#21213a;
+  --border:#2e2e50; --border2:#3a3a60;
+  --p:#7c6fff; --p2:#a78bfa; --p3:#c4b5fd;
+  --g:#34d399; --r:#f87171; --y:#fbbf24; --b:#60a5fa; --pink:#f472b6;
+  --t1:#f1f0ff; --t2:#9d9dc0; --t3:#6b6b90;
+  --radius:18px; --radius-sm:12px; --radius-xs:8px;
+  --shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+[data-theme="light"] {
+  --bg:#f4f4ff; --s1:#ffffff; --s2:#f0f0fa; --s3:#e8e8f5;
+  --border:#d4d4e8; --border2:#c0c0dc;
+  --t1:#1a1a2e; --t2:#4a4a70; --t3:#7a7a9a;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Instrument Sans',sans-serif;
+  background:var(--bg); color:var(--t1);
+  min-height:100vh; overflow-x:hidden;
+  transition:background 0.3s,color 0.3s;
+}
+/* Animated background */
+.bg-orbs{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:0.12;animation:orbFloat 12s ease-in-out infinite;}
+.orb1{width:400px;height:400px;background:var(--p);top:-100px;left:-100px;animation-delay:0s;}
+.orb2{width:300px;height:300px;background:var(--pink);bottom:-80px;right:-80px;animation-delay:-4s;}
+.orb3{width:250px;height:250px;background:var(--g);top:50%;left:50%;animation-delay:-8s;}
+@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1);}33%{transform:translate(30px,-20px) scale(1.05);}66%{transform:translate(-20px,30px) scale(0.95);}}
+
+/* APP SHELL */
+.app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;z-index:1;}
+
+/* LOCK SCREEN */
+.lock-screen{
+  position:fixed;inset:0;z-index:1000;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px 30px;
+}
+.lock-logo{font-family:'Cabinet Grotesk',sans-serif;font-size:36px;font-weight:900;background:linear-gradient(135deg,var(--p),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;}
+.lock-sub{color:var(--t2);font-size:14px;margin-bottom:40px;}
+.pin-display{display:flex;gap:16px;margin-bottom:32px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border2);transition:all 0.2s;}
+.pin-dot.filled{background:var(--p);border-color:var(--p);}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:240px;}
+.pin-key{
+  height:64px;border-radius:var(--radius-sm);
+  background:var(--s1);border:1px solid var(--border);
+  font-family:'Cabinet Grotesk',sans-serif;font-size:22px;font-weight:700;
+  color:var(--t1);cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;
+}
+.pin-key:active{transform:scale(0.94);background:var(--p);color:white;}
+.pin-key.del{font-size:18px;}
+.pin-error{color:var(--r);font-size:13px;margin-top:12px;animation:shake 0.3s;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-8px);}75%{transform:translateX(8px);}}
+
+/* ONBOARDING */
+.onboard{position:fixed;inset:0;z-index:999;background:var(--bg);overflow-y:auto;}
+.onboard-slide{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 30px;text-align:center;}
+.onboard-emoji{font-size:80px;margin-bottom:24px;animation:bounce 1s ease-in-out infinite alternate;}
+@keyframes bounce{from{transform:translateY(0);}to{transform:translateY(-12px);}}
+.onboard-title{font-family:'Cabinet Grotesk',sans-serif;font-size:32px;font-weight:900;margin-bottom:12px;background:linear-gradient(135deg,var(--p),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.onboard-desc{color:var(--t2);font-size:15px;line-height:1.7;margin-bottom:32px;max-width:300px;}
+.onboard-dots{display:flex;gap:8px;margin-bottom:32px;}
+.onboard-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:all 0.3s;}
+.onboard-dot.active{width:24px;border-radius:4px;background:var(--p);}
+
+/* HEADER */
+.header{
+  padding:16px 20px 0;
+  display:flex;justify-content:space-between;align-items:center;
+  position:sticky;top:0;z-index:50;
+  background:rgba(13,13,20,0.85);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid transparent;
+}
+[data-theme="light"] .header{background:rgba(244,244,255,0.85);}
+.header-left{display:flex;flex-direction:column;}
+.logo{font-family:'Cabinet Grotesk',sans-serif;font-weight:900;font-size:22px;background:linear-gradient(135deg,var(--p),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header-meta{font-size:11px;color:var(--t3);margin-top:1px;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.icon-btn{
+  width:38px;height:38px;border-radius:var(--radius-xs);
+  background:var(--s1);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:16px;transition:all 0.2s;
+}
+.icon-btn:active{transform:scale(0.92);}
+.icon-btn.active{background:rgba(124,111,255,0.15);border-color:var(--p);}
+.notif-badge{
+  position:absolute;top:-4px;right:-4px;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--r);font-size:9px;font-weight:700;
+  color:white;display:flex;align-items:center;justify-content:center;
+}
+
+/* SUMMARY BAR */
+.summary-bar{
+  display:flex;gap:10px;padding:14px 20px;
+  overflow-x:auto;scrollbar-width:none;
+}
+.summary-bar::-webkit-scrollbar{display:none;}
+.sum-pill{
+  flex:0 0 auto;
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:50px;padding:10px 18px;
+  display:flex;align-items:center;gap:8px;
+  transition:all 0.2s;
+}
+.sum-pill:hover{border-color:var(--p);}
+.sum-pill-icon{font-size:16px;}
+.sum-pill-val{font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:700;}
+.sum-pill-label{font-size:11px;color:var(--t2);}
+
+/* NAV */
+.nav{
+  display:flex;padding:0 12px;
+  border-bottom:1px solid var(--border);
+  overflow-x:auto;scrollbar-width:none;
+  background:var(--bg);
+  position:sticky;top:55px;z-index:49;
+}
+.nav::-webkit-scrollbar{display:none;}
+.nav-btn{
+  flex:0 0 auto;padding:12px 14px;
+  background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--t3);font-family:'Instrument Sans',sans-serif;
+  font-size:12px;font-weight:600;cursor:pointer;
+  transition:all 0.2s;white-space:nowrap;
+  display:flex;align-items:center;gap:5px;
+  text-transform:uppercase;letter-spacing:0.5px;
+}
+.nav-btn.active{color:var(--p);border-bottom-color:var(--p);}
+.nav-btn:hover:not(.active){color:var(--t1);}
+
+/* CONTENT */
+.content{flex:1;padding:16px 16px 100px;}
+
+/* SECTION */
+.sec-title{
+  font-family:'Cabinet Grotesk',sans-serif;
+  font-size:17px;font-weight:800;
+  margin-bottom:14px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sec-badge{
+  font-size:11px;font-weight:600;
+  padding:3px 10px;border-radius:20px;
+  background:rgba(124,111,255,0.15);color:var(--p);
+  font-family:'Instrument Sans',sans-serif;
+}
+
+/* CARDS */
+.card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px;
+  margin-bottom:12px;transition:all 0.2s;
+}
+.card:hover{border-color:var(--border2);}
+.card-danger{border-color:rgba(248,113,113,0.3);}
+
+/* FORM */
+.field{margin-bottom:13px;}
+.field label{
+  display:block;font-size:11px;color:var(--t2);
+  text-transform:uppercase;letter-spacing:0.6px;
+  margin-bottom:6px;font-weight:600;
+}
+.field input,.field select,.field textarea{
+  width:100%;background:var(--s2);
+  border:1.5px solid var(--border);border-radius:var(--radius-xs);
+  padding:11px 13px;color:var(--t1);
+  font-family:'Instrument Sans',sans-serif;font-size:15px;
+  transition:all 0.2s;outline:none;
+  -webkit-appearance:none;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  border-color:var(--p);
+  box-shadow:0 0 0 3px rgba(124,111,255,0.12);
+}
+.field select option{background:var(--s2);}
+.field textarea{resize:none;height:70px;line-height:1.5;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+
+/* BUTTONS */
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:13px 20px;
+  background:linear-gradient(135deg,var(--p),#9d4edd);
+  color:white;border:none;border-radius:var(--radius-xs);
+  font-family:'Cabinet Grotesk',sans-serif;
+  font-size:14px;font-weight:700;
+  cursor:pointer;letter-spacing:0.3px;
+  transition:all 0.2s;width:100%;
+}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(124,111,255,0.35);}
+.btn:active{transform:translateY(1px);box-shadow:none;}
+.btn-sm{font-size:12px;padding:8px 14px;width:auto;}
+.btn-xs{font-size:11px;padding:6px 10px;width:auto;border-radius:6px;}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--t2);}
+.btn-outline:hover{background:var(--s2);color:var(--t1);box-shadow:none;}
+.btn-green{background:linear-gradient(135deg,var(--g),#059669);}
+.btn-red{background:linear-gradient(135deg,var(--r),#dc2626);}
+.btn-yellow{background:linear-gradient(135deg,var(--y),#d97706);}
+.btn-blue{background:linear-gradient(135deg,var(--b),#2563eb);}
+.btn-row{display:flex;gap:8px;}
+
+/* CATEGORIES */
+.cat-grid{display:flex;flex-wrap:wrap;gap:7px;}
+.cat-chip{
+  padding:7px 12px;border-radius:20px;
+  background:var(--s2);border:1.5px solid var(--border);
+  font-size:12px;color:var(--t2);cursor:pointer;
+  transition:all 0.2s;display:flex;align-items:center;gap:5px;
+  font-weight:500;
+}
+.cat-chip.sel{background:rgba(124,111,255,0.12);border-color:var(--p);color:var(--p);}
+
+/* SPLIT GRID */
+.split-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.split-item{
+  background:var(--s2);border:1.5px solid var(--border);
+  border-radius:var(--radius-xs);padding:10px 12px;
+  display:flex;align-items:center;gap:9px;
+  cursor:pointer;transition:all 0.2s;
+}
+.split-item.sel{background:rgba(124,111,255,0.1);border-color:var(--p);}
+.chk{
+  width:18px;height:18px;border-radius:5px;
+  border:2px solid var(--border2);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.2s;font-size:11px;
+}
+.split-item.sel .chk{background:var(--p);border-color:var(--p);color:white;}
+
+/* SPLIT TYPE */
+.split-type-row{display:flex;gap:6px;margin-bottom:12px;}
+.split-type-btn{
+  flex:1;padding:8px;border-radius:var(--radius-xs);
+  background:var(--s2);border:1.5px solid var(--border);
+  font-size:12px;color:var(--t2);cursor:pointer;
+  text-align:center;transition:all 0.2s;font-weight:600;
+}
+.split-type-btn.sel{background:rgba(124,111,255,0.12);border-color:var(--p);color:var(--p);}
+
+/* RECEIPT */
+.receipt-zone{
+  border:2px dashed var(--border2);border-radius:var(--radius-xs);
+  padding:18px;text-align:center;cursor:pointer;
+  transition:all 0.2s;position:relative;
+}
+.receipt-zone:hover{border-color:var(--p);background:rgba(124,111,255,0.04);}
+.receipt-zone input{display:none;}
+.receipt-thumb{max-width:100%;border-radius:8px;max-height:140px;object-fit:cover;margin-top:8px;}
+
+/* EXPENSE ITEM */
+.exp-item{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:15px;
+  margin-bottom:10px;cursor:pointer;
+  transition:all 0.2s;position:relative;overflow:hidden;
+}
+.exp-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;}
+.exp-item:hover{border-color:var(--border2);transform:translateX(2px);}
+.exp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+.exp-name{font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:700;margin-bottom:4px;}
+.exp-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.exp-tag{
+  font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;
+  text-transform:uppercase;letter-spacing:0.4px;
+}
+.exp-amount{font-family:'Cabinet Grotesk',sans-serif;font-size:17px;font-weight:800;text-align:right;}
+.exp-per{font-size:11px;color:var(--t2);margin-top:2px;text-align:right;}
+.exp-bottom{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--t2);}
+.exp-actions{display:flex;gap:6px;margin-top:10px;}
+
+/* RECURRING BADGE */
+.rec-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;font-weight:700;
+  padding:2px 7px;border-radius:8px;
+  background:rgba(251,191,36,0.12);color:var(--y);
+}
+
+/* AVATAR */
+.avatar{
+  width:40px;height:40px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cabinet Grotesk',sans-serif;font-weight:800;font-size:16px;
+  flex-shrink:0;color:white;
+}
+.avatar-sm{width:32px;height:32px;font-size:13px;}
+.avatar-xs{width:26px;height:26px;font-size:11px;}
+
+/* PERSON CARD */
+.person-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px;
+  margin-bottom:10px;display:flex;align-items:center;gap:12px;
+  transition:all 0.2s;
+}
+.person-card:hover{border-color:var(--border2);}
+
+/* BALANCE */
+.bal-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:15px;
+  margin-bottom:10px;display:flex;align-items:center;gap:12px;
+}
+.bal-amount{font-family:'Cabinet Grotesk',sans-serif;font-size:18px;font-weight:800;margin-left:auto;}
+.settle-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px;
+  margin-bottom:10px;display:flex;align-items:center;gap:10px;
+}
+
+/* CHARTS */
+.chart-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.chart-label{font-size:12px;color:var(--t2);width:70px;flex-shrink:0;}
+.chart-track{flex:1;height:7px;background:var(--s3);border-radius:4px;overflow:hidden;}
+.chart-fill{height:100%;border-radius:4px;transition:width 0.6s ease;}
+.chart-val{font-size:11px;color:var(--t2);width:52px;text-align:right;}
+
+/* ACTIVITY FEED */
+.activity-item{
+  display:flex;align-items:flex-start;gap:11px;
+  padding:12px 0;border-bottom:1px solid var(--border);
+}
+.activity-item:last-child{border-bottom:none;}
+.activity-dot{
+  width:34px;height:34px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0;margin-top:1px;
+}
+.activity-text{font-size:13px;line-height:1.5;flex:1;}
+.activity-time{font-size:11px;color:var(--t3);margin-top:3px;}
+.activity-emoji{font-size:16px;flex-shrink:0;}
+
+/* IOU */
+.iou-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px;margin-bottom:10px;
+}
+.iou-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.iou-status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;}
+.iou-due{font-size:11px;color:var(--t2);}
+
+/* BUDGET */
+.budget-row{margin-bottom:14px;}
+.budget-header{display:flex;justify-content:space-between;margin-bottom:6px;}
+.budget-name{font-size:13px;font-weight:600;}
+.budget-nums{font-size:12px;color:var(--t2);}
+.budget-bar{height:8px;background:var(--s3);border-radius:4px;overflow:hidden;}
+.budget-fill{height:100%;border-radius:4px;transition:width 0.6s;}
+
+/* MONTH CHIPS */
+.month-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:11px 14px;background:var(--s2);border-radius:var(--radius-xs);
+  margin-bottom:8px;
+}
+
+/* PAYMENT METHOD */
+.payment-btn{
+  flex:1;padding:14px;border-radius:var(--radius-xs);
+  background:var(--s2);border:1.5px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  cursor:pointer;transition:all 0.2s;
+}
+.payment-btn:hover{border-color:var(--p);background:rgba(124,111,255,0.05);}
+.payment-btn.sel{background:rgba(124,111,255,0.1);border-color:var(--p);}
+.payment-icon{font-size:24px;}
+.payment-name{font-size:12px;font-weight:600;color:var(--t2);}
+
+/* MODAL */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.75);
+  display:flex;align-items:flex-end;justify-content:center;
+  z-index:200;padding:20px;
+  animation:fadeIn 0.2s ease;
+}
+.modal-overlay.center{align-items:center;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.modal{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius) var(--radius) 0 0;
+  padding:24px;width:100%;max-width:480px;
+  max-height:90vh;overflow-y:auto;
+  animation:slideUp 0.25s ease;
+}
+.modal.center-modal{border-radius:var(--radius);max-width:360px;}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.modal-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px;}
+.modal-title{font-family:'Cabinet Grotesk',sans-serif;font-size:20px;font-weight:800;margin-bottom:6px;}
+.modal-sub{font-size:13px;color:var(--t2);margin-bottom:20px;line-height:1.5;}
+#qrcode{display:flex;justify-content:center;margin:16px 0;}
+#qrcode canvas{border-radius:12px;}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:84px;left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--s1);border:1px solid var(--border);
+  padding:12px 22px;border-radius:50px;
+  font-size:13px;font-weight:600;z-index:300;
+  transition:all 0.3s;opacity:0;pointer-events:none;
+  box-shadow:var(--shadow);white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* BOTTOM NAV */
+.bottom-nav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;
+  background:rgba(13,13,20,0.9);
+  backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:flex;padding:8px 0 16px;z-index:100;
+}
+[data-theme="light"] .bottom-nav{background:rgba(244,244,255,0.9);}
+.bnav-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;cursor:pointer;padding:6px 0;
+  transition:all 0.2s;
+}
+.bnav-icon{font-size:20px;transition:transform 0.2s;}
+.bnav-label{font-size:10px;color:var(--t3);font-weight:600;transition:color 0.2s;}
+.bnav-btn.active .bnav-icon{transform:scale(1.15);}
+.bnav-btn.active .bnav-label{color:var(--p);}
+.bnav-btn.center-action .bnav-icon{
+  background:linear-gradient(135deg,var(--p),var(--pink));
+  width:44px;height:44px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;
+  box-shadow:0 4px 16px rgba(124,111,255,0.4);
+}
+
+/* EMPTY */
+.empty{text-align:center;padding:50px 20px;color:var(--t3);}
+.empty-icon{font-size:44px;margin-bottom:12px;opacity:0.4;}
+.empty-title{font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:800;margin-bottom:6px;color:var(--t2);}
+.empty-desc{font-size:13px;line-height:1.6;}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:16px 0;}
+.info-box{
+  background:rgba(124,111,255,0.07);
+  border:1px solid rgba(124,111,255,0.18);
+  border-radius:var(--radius-xs);padding:12px 14px;
+  font-size:13px;color:var(--t2);margin-bottom:14px;line-height:1.6;
+}
+.warn-box{background:rgba(251,191,36,0.07);border-color:rgba(251,191,36,0.2);color:var(--y);}
+.success-box{background:rgba(52,211,153,0.07);border-color:rgba(52,211,153,0.2);color:var(--g);}
+
+/* SYNC */
+.sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sync-dot.live{background:var(--g);box-shadow:0 0 6px var(--g);}
+.sync-dot.syncing{background:var(--y);animation:pulse 1s infinite;}
+.sync-dot.off{background:var(--t3);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+/* CURRENCY SELECTOR */
+.curr-chips{display:flex;gap:7px;flex-wrap:wrap;}
+.curr-chip{
+  padding:6px 12px;border-radius:var(--radius-xs);
+  background:var(--s2);border:1.5px solid var(--border);
+  font-size:12px;color:var(--t2);cursor:pointer;
+  font-weight:600;transition:all 0.2s;
+}
+.curr-chip.sel{background:rgba(124,111,255,0.12);border-color:var(--p);color:var(--p);}
+
+/* OCR OVERLAY */
+.ocr-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.9);
+  z-index:500;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  animation:fadeIn 0.2s;
+}
+.ocr-frame{
+  width:280px;height:180px;border:2px solid var(--p);border-radius:var(--radius);
+  position:relative;margin-bottom:20px;
+}
+.ocr-corner{position:absolute;width:20px;height:20px;border-color:var(--p);border-style:solid;}
+.ocr-corner.tl{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:4px 0 0 0;}
+.ocr-corner.tr{top:-2px;right:-2px;border-width:3px 3px 0 0;border-radius:0 4px 0 0;}
+.ocr-corner.bl{bottom:-2px;left:-2px;border-width:0 0 3px 3px;border-radius:0 0 0 4px;}
+.ocr-corner.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 4px 0;}
+.ocr-scan{
+  position:absolute;left:0;right:0;height:2px;background:var(--p);
+  box-shadow:0 0 10px var(--p);
+  animation:scan 1.5s linear infinite;
+}
+@keyframes scan{0%{top:0;}100%{top:100%;}}
+.ocr-text{color:white;font-size:14px;text-align:center;max-width:280px;line-height:1.6;}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.stat-box{background:var(--s2);border-radius:var(--radius-xs);padding:14px;}
+.stat-label{font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.stat-val{font-family:'Cabinet Grotesk',sans-serif;font-size:20px;font-weight:800;}
+
+/* HEATMAP */
+.heatmap{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:8px;}
+.heat-cell{aspect-ratio:1;border-radius:3px;background:var(--s3);transition:all 0.2s;}
+.heat-cell:hover{transform:scale(1.2);}
+
+/* SCROLL FADE */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.fade-in{animation:fadeInUp 0.3s ease forwards;}
+
+/* RESPONSIVE */
+@media(max-width:380px){.content{padding:12px 12px 100px;}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo}=React;
+
+// ─── CONSTANTS ───────────────────────────────────────────────
+const CATEGORIES=[
+  {id:'food',label:'Food',emoji:'🍽️',color:'#fbbf24'},
+  {id:'transport',label:'Transport',emoji:'🚗',color:'#60a5fa'},
+  {id:'housing',label:'Housing',emoji:'🏠',color:'#a78bfa'},
+  {id:'entertainment',label:'Fun',emoji:'🎉',color:'#f472b6'},
+  {id:'utilities',label:'Utilities',emoji:'💡',color:'#34d399'},
+  {id:'shopping',label:'Shopping',emoji:'🛍️',color:'#fb923c'},
+  {id:'health',label:'Health',emoji:'💊',color:'#f87171'},
+  {id:'other',label:'Other',emoji:'📦',color:'#9ca3af'},
+];
+const CURRENCIES=[
+  {code:'USD',symbol:'$',rate:1,flag:'🇺🇸'},
+  {code:'EUR',symbol:'€',rate:0.92,flag:'🇪🇺'},
+  {code:'GBP',symbol:'£',rate:0.79,flag:'🇬🇧'},
+  {code:'INR',symbol:'₹',rate:83.12,flag:'🇮🇳'},
+  {code:'CAD',symbol:'C$',rate:1.36,flag:'🇨🇦'},
+  {code:'AUD',symbol:'A$',rate:1.53,flag:'🇦🇺'},
+  {code:'JPY',symbol:'¥',rate:149.5,flag:'🇯🇵'},
+  {code:'SGD',symbol:'S$',rate:1.34,flag:'🇸🇬'},
+];
+const PAYMENT_METHODS=[
+  {id:'paypal',name:'PayPal',icon:'💙',color:'#003087',getUrl:(amt,note)=>`https://www.paypal.com/paypalme/pay?amount=${amt}&note=${encodeURIComponent(note)}`,webUrl:'https://www.paypal.com/myaccount/transfer/homepage/pay',desc:'Send via PayPal'},
+  {id:'venmo',name:'Venmo',icon:'💜',color:'#3D95CE',getUrl:(amt,note)=>`venmo://paycharge?txn=pay&amount=${amt}&note=${encodeURIComponent(note)}`,webUrl:'https://venmo.com/',desc:'Open Venmo app'},
+  {id:'gpay',name:'Google Pay',icon:'🟢',color:'#4285F4',getUrl:(amt,note)=>`tez://upi/pay?am=${amt}&tn=${encodeURIComponent(note)}&cu=INR`,webUrl:'https://pay.google.com',desc:'Pay via GPay/UPI'},
+  {id:'phonepe',name:'PhonePe',icon:'🟣',color:'#5f259f',getUrl:(amt,note)=>`phonepe://pay?am=${amt}&tn=${encodeURIComponent(note)}&cu=INR`,webUrl:'https://www.phonepe.com/',desc:'Pay via PhonePe'},
+  {id:'upi',name:'Any UPI',icon:'🇮🇳',color:'#FF6600',getUrl:(amt,note)=>`upi://pay?am=${amt}&tn=${encodeURIComponent(note)}&cu=INR`,webUrl:'https://www.npci.org.in/',desc:'Open any UPI app'},
+  {id:'cashapp',name:'Cash App',icon:'💚',color:'#00D64F',getUrl:(amt,note)=>`cashapp://cash.app/pay?amount=${amt}&note=${encodeURIComponent(note)}`,webUrl:'https://cash.app/',desc:'Pay via Cash App'},
+  {id:'cash',name:'Cash',icon:'💵',color:'#4caf50',getUrl:()=>null,webUrl:null,desc:'Mark as cash payment'},
+  {id:'bank',name:'Bank',icon:'🏦',color:'#607d8b',getUrl:()=>null,webUrl:null,desc:'Bank transfer'},
+];
+const RECUR_OPTIONS=[
+  {id:'none',label:'One-time'},
+  {id:'weekly',label:'Weekly'},
+  {id:'monthly',label:'Monthly'},
+  {id:'yearly',label:'Yearly'},
+];
+const AVATAR_GRADIENTS=[
+  ['#7c6fff','#9d4edd'],['#f472b6','#ec4899'],
+  ['#34d399','#059669'],['#fbbf24','#d97706'],
+  ['#60a5fa','#2563eb'],['#fb923c','#ea580c'],
+  ['#a78bfa','#7c3aed'],['#f87171','#dc2626'],
+];
+const AI_SUGGESTIONS={
+  'dinner':['food','🍽️'],  'lunch':['food','🍽️'],  'breakfast':['food','🍽️'],
+  'uber':['transport','🚗'],'lyft':['transport','🚗'],'taxi':['transport','🚗'],
+  'gas':['transport','🚗'],'petrol':['transport','🚗'],
+  'rent':['housing','🏠'],'hotel':['housing','🏠'],'airbnb':['housing','🏠'],
+  'movie':['entertainment','🎉'],'netflix':['entertainment','🎉'],'concert':['entertainment','🎉'],
+  'electric':['utilities','💡'],'water':['utilities','💡'],'internet':['utilities','💡'],
+  'amazon':['shopping','🛍️'],'grocery':['food','🍽️'],'groceries':['food','🍽️'],
+  'doctor':['health','💊'],'pharmacy':['health','💊'],'medicine':['health','💊'],
+};
+
+function getGrad(i){return AVATAR_GRADIENTS[i%AVATAR_GRADIENTS.length];}
+function getIdx(arr,id){const i=arr.findIndex(x=>String(x.id)===String(id));return i<0?0:i;}
+function fmtDate(iso){return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+function fmtTime(iso){return new Date(iso).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});}
+function monthKey(iso){const d=new Date(iso);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+function fmtMonth(key){const[y,m]=key.split('-');return new Date(y,m-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});}
+function aiCategory(desc){
+  const lower=(desc||'').toLowerCase();
+  for(const[kw,[cat]]of Object.entries(AI_SUGGESTIONS)){
+    if(lower.includes(kw))return cat;
+  }
+  return null;
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────
+function App(){
+  const [tab,setTab]=useState('expenses');
+  const [people,setPeople]=useState([]);
+  const [expenses,setExpenses]=useState([]);
+  const [ious,setIous]=useState([]);
+  const [budgets,setBudgets]=useState({});
+  const [activity,setActivity]=useState([]);
+  const [baseCurrency,setBaseCurrency]=useState('USD');
+  const [theme,setTheme]=useState('dark');
+  const [pinEnabled,setPinEnabled]=useState(false);
+  const [pin,setPin]=useState('');
+  const [locked,setLocked]=useState(false);
+  const [onboarded,setOnboarded]=useState(false);
+  const [showQR,setShowQR]=useState(false);
+  const [showNotifPanel,setShowNotifPanel]=useState(false);
+  const [syncStatus,setSyncStatus]=useState('live');
+  const [toast,setToast]=useState('');
+  const [toastVis,setToastVis]=useState(false);
+  const [addExpenseModal,setAddExpenseModal]=useState(false);
+  const [undoStack,setUndoStack]=useState([]);
+
+  useEffect(()=>{
+    try{
+      const d=JSON.parse(localStorage.getItem('se_v3')||'{}');
+      if(d.people)setPeople(d.people);
+      if(d.expenses)setExpenses(d.expenses);
+      if(d.ious)setIous(d.ious);
+      if(d.budgets)setBudgets(d.budgets);
+      if(d.activity)setActivity(d.activity);
+      if(d.baseCurrency)setBaseCurrency(d.baseCurrency);
+      if(d.theme)setTheme(d.theme);
+      if(d.pinEnabled)setPinEnabled(d.pinEnabled);
+      if(d.pin)setPin(d.pin);
+      if(d.onboarded)setOnboarded(d.onboarded);
+    }catch(_){}
+  },[]);
+
+  useEffect(()=>{
+    document.documentElement.setAttribute('data-theme',theme);
+  },[theme]);
+
+  const save=useCallback((updates)=>{
+    setSyncStatus('syncing');
+    setTimeout(()=>setSyncStatus('live'),800);
+    const current=JSON.parse(localStorage.getItem('se_v3')||'{}');
+    localStorage.setItem('se_v3',JSON.stringify({...current,...updates}));
+  },[]);
+
+  useEffect(()=>{ save({people,expenses,ious,budgets,activity,baseCurrency,theme,pinEnabled,pin,onboarded}); },[people,expenses,ious,budgets,baseCurrency,theme,pinEnabled,pin,onboarded]);
+
+  const showToast=useCallback((msg)=>{
+    setToast(msg);setToastVis(true);
+    setTimeout(()=>setToastVis(false),2800);
+  },[]);
+
+  const addActivity=useCallback((emoji,text)=>{
+    setActivity(prev=>[{id:Date.now(),emoji,text,time:new Date().toISOString()},...prev].slice(0,50));
+  },[]);
+
+  const pushUndo=useCallback((action)=>{
+    setUndoStack(prev=>[action,...prev].slice(0,10));
+    showToast(`🔄 ${action.label} — tap to undo`);
+  },[showToast]);
+
+  // Currency helpers
+  const sym=useMemo(()=>CURRENCIES.find(c=>c.code===baseCurrency)?.symbol||'$',[baseCurrency]);
+  const convert=useCallback((amount,from='USD')=>{
+    const fromRate=CURRENCIES.find(c=>c.code===from)?.rate||1;
+    const toRate=CURRENCIES.find(c=>c.code===baseCurrency)?.rate||1;
+    return (amount/fromRate)*toRate;
+  },[baseCurrency]);
+
+  const getName=useCallback(id=>people.find(p=>String(p.id)===String(id))?.name||'?',[people]);
+
+  // Balances
+  const balances=useMemo(()=>{
+    const b={};
+    people.forEach(p=>b[String(p.id)]=0);
+    expenses.forEach(exp=>{
+      if(!exp.splitWith||exp.splitWith.length===0)return;
+      const amt=convert(exp.amount,exp.currency||'USD');
+      const per=amt/exp.splitWith.length;
+      b[String(exp.paidBy)]=(b[String(exp.paidBy)]||0)+amt;
+      exp.splitWith.forEach(id=>{b[String(id)]=(b[String(id)]||0)-per;});
+    });
+    return b;
+  },[people,expenses,convert]);
+
+  const settlements=useMemo(()=>{
+    const result=[];
+    const d=[],c=[];
+    Object.entries(balances).forEach(([id,bal])=>{
+      if(bal<-0.01)d.push({id,amount:-bal});
+      else if(bal>0.01)c.push({id,amount:bal});
+    });
+    d.sort((a,b)=>b.amount-a.amount);c.sort((a,b)=>b.amount-a.amount);
+    let i=0,j=0;
+    while(i<d.length&&j<c.length){
+      const amt=Math.min(d[i].amount,c[j].amount);
+      if(amt>0.01)result.push({from:d[i].id,to:c[j].id,amount:amt});
+      d[i].amount-=amt;c[j].amount-=amt;
+      if(d[i].amount<0.01)i++;
+      if(c[j].amount<0.01)j++;
+    }
+    return result;
+  },[balances]);
+
+  const totalSpent=useMemo(()=>expenses.reduce((s,e)=>s+convert(e.amount,e.currency||'USD'),0),[expenses,convert]);
+
+  // Category totals
+  const catTotals=useMemo(()=>{
+    const t={};CATEGORIES.forEach(c=>t[c.id]=0);
+    expenses.forEach(e=>{const cat=e.category||'other';t[cat]=(t[cat]||0)+convert(e.amount,e.currency||'USD');});
+    return t;
+  },[expenses,convert]);
+
+  // Monthly totals
+  const monthlyTotals=useMemo(()=>{
+    const m={};
+    expenses.forEach(e=>{const k=monthKey(e.date);m[k]=(m[k]||0)+convert(e.amount,e.currency||'USD');});
+    return m;
+  },[expenses,convert]);
+
+  // Budget alerts
+  const budgetAlerts=useMemo(()=>{
+    return CATEGORIES.filter(c=>{
+      const limit=budgets[c.id];
+      if(!limit)return false;
+      return catTotals[c.id]>=limit*0.8;
+    });
+  },[budgets,catTotals]);
+
+  // QR
+  const handleQR=()=>{
+    setShowQR(true);
+    setTimeout(()=>{
+      const el=document.getElementById('qrcode');
+      if(!el)return;el.innerHTML='';
+      const data=JSON.stringify({people,expenses:expenses.map(e=>({...e,receipt:undefined})),baseCurrency});
+      try{new QRCode(el,{text:data.slice(0,1500),width:180,height:180,colorDark:'#7c6fff',colorLight:'#141420',correctLevel:QRCode.CorrectLevel.L});}catch(_){}
+    },150);
+  };
+
+  // Export PDF
+  const exportPDF=()=>{
+    try{
+      const{jsPDF}=window.jspdf;
+      const doc=new jsPDF();
+      doc.setFillColor(13,13,20);doc.rect(0,0,210,297,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(24);doc.setTextColor(124,111,255);
+      doc.text('SplitEase Pro',20,22);
+      doc.setFontSize(10);doc.setTextColor(157,157,192);
+      doc.text(`Report • ${new Date().toLocaleDateString()} • ${baseCurrency}`,20,30);
+      let y=44;
+      const row=(label,val,col=[240,240,255])=>{
+        if(y>278){doc.addPage();doc.setFillColor(13,13,20);doc.rect(0,0,210,297,'F');y=20;}
+        doc.setTextColor(...col);doc.setFont('helvetica','normal');doc.setFontSize(10);
+        doc.text(label,20,y);doc.text(String(val),180,y,{align:'right'});y+=8;
+      };
+      const head=(t,col=[124,111,255])=>{
+        y+=4;doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...col);doc.text(t,20,y);y+=8;
+      };
+      head('Summary');
+      row('Total Expenses',expenses.length);row('Total Amount',`${sym}${totalSpent.toFixed(2)}`);row('People',people.length);row('Pending Settlements',settlements.length);
+      y+=4;head('Expenses',[124,111,255]);
+      expenses.forEach((e,i)=>{
+        const amt=convert(e.amount,e.currency||'USD');
+        if(i%2===0)doc.setFillColor(20,20,32);else doc.setFillColor(26,26,46);
+        doc.rect(15,y-5,180,10,'F');
+        row(e.description.slice(0,40),`${sym}${amt.toFixed(2)}`,[240,240,255]);
+        y-=2;doc.setTextColor(157,157,192);doc.setFontSize(8);
+        doc.text(`Paid by ${getName(e.paidBy)} · ${formatDate(e.date)||fmtDate(e.date)} · ${e.category}`,22,y);y+=7;
+      });
+      if(settlements.length){
+        head('Settlements',[52,211,153]);
+        settlements.forEach(s=>row(`${getName(s.from)} → ${getName(s.to)}`,`${sym}${s.amount.toFixed(2)}`,[240,240,255]));
+      }
+      head('Spending by Category',[244,114,182]);
+      CATEGORIES.forEach(c=>{if(catTotals[c.id]>0)row(`${c.emoji} ${c.label}`,`${sym}${catTotals[c.id].toFixed(2)}`,[240,240,255]);});
+      doc.save('SplitEase-Report.pdf');
+      showToast('📄 PDF exported!');addActivity('📄','Exported PDF report');
+    }catch(err){showToast('❌ PDF export failed');}
+  };
+
+  // Notifications
+  const requestNotif=async()=>{
+    if(!('Notification'in window))return showToast('❌ Not supported');
+    if(Notification.permission==='granted'){
+      new Notification('SplitEase Pro',{body:`${settlements.length} pending settlements. Total: ${sym}${totalSpent.toFixed(2)}`});
+      showToast('🔔 Notification sent!');
+    }else{
+      const p=await Notification.requestPermission();
+      if(p==='granted'){new Notification('SplitEase Pro',{body:'Notifications enabled!'});showToast('🔔 Enabled!');}
+      else showToast('🔕 Blocked in browser');
+    }
+  };
+
+  if(!onboarded){return <Onboarding onDone={()=>{setOnboarded(true);save({onboarded:true});}}/>;}
+  if(locked&&pinEnabled){return <LockScreen correctPin={pin} onUnlock={()=>setLocked(false)} />;}
+
+  const TABS=[
+    {id:'expenses',icon:'💳',label:'Expenses'},
+    {id:'balances',icon:'⚖️',label:'Balances'},
+    {id:'reports',icon:'📊',label:'Reports'},
+    {id:'people',icon:'👥',label:'People'},
+    {id:'more',icon:'⋯',label:'More'},
+  ];
+
+  return(
+    <div className="app">
+      <div className="bg-orbs"><div className="orb orb1"/><div className="orb orb2"/><div className="orb orb3"/></div>
+
+      {/* Header */}
+      <div className="header" style={{paddingBottom:12}}>
+        <div className="header-left">
+          <div className="logo">SplitEase <span style={{fontSize:14,fontWeight:400,color:'var(--t2)'}}>Pro</span></div>
+          <div className="header-meta">
+            <span style={{display:'inline-flex',alignItems:'center',gap:4}}>
+              <span className={`sync-dot ${syncStatus==='live'?'live':syncStatus==='syncing'?'syncing':'off'}`}/>
+              {syncStatus==='live'?'All saved':'Syncing...'}
+            </span>
+          </div>
+        </div>
+        <div className="header-right">
+          {budgetAlerts.length>0&&(
+            <div style={{position:'relative'}}>
+              <div className="icon-btn" onClick={()=>showToast(`⚠️ Budget alert: ${budgetAlerts.map(c=>c.label).join(', ')}`)} title="Budget Alert">🔔</div>
+              <div className="notif-badge">{budgetAlerts.length}</div>
+            </div>
+          )}
+          <div className="icon-btn" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')} title="Toggle theme">{theme==='dark'?'☀️':'🌙'}</div>
+          {pinEnabled&&<div className="icon-btn" onClick={()=>setLocked(true)} title="Lock app">🔒</div>}
+        </div>
+      </div>
+
+      {/* Summary pills */}
+      <div className="summary-bar">
+        <div className="sum-pill">
+          <span className="sum-pill-icon">💰</span>
+          <div><div className="sum-pill-val">{sym}{totalSpent.toFixed(2)}</div><div className="sum-pill-label">Total spent</div></div>
+        </div>
+        <div className="sum-pill">
+          <span className="sum-pill-icon">⚖️</span>
+          <div><div className="sum-pill-val">{settlements.length}</div><div className="sum-pill-label">To settle</div></div>
+        </div>
+        <div className="sum-pill">
+          <span className="sum-pill-icon">👥</span>
+          <div><div className="sum-pill-val">{people.length}</div><div className="sum-pill-label">People</div></div>
+        </div>
+        <div className="sum-pill">
+          <span className="sum-pill-icon">📋</span>
+          <div><div className="sum-pill-val">{expenses.length}</div><div className="sum-pill-label">Expenses</div></div>
+        </div>
+      </div>
+
+      {/* Top nav */}
+      <div className="nav">
+        {TABS.map(t=>(
+          <button key={t.id} className={`nav-btn ${tab===t.id?'active':''}`} onClick={()=>setTab(t.id)}>
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="content">
+        {tab==='expenses'&&<ExpensesTab people={people} expenses={expenses} setExpenses={setExpenses} sym={sym} convert={convert} getName={getName} baseCurrency={baseCurrency} showToast={showToast} addActivity={addActivity} pushUndo={pushUndo} undoStack={undoStack} setUndoStack={setUndoStack}/>}
+        {tab==='balances'&&<BalancesTab people={people} expenses={expenses} balances={balances} settlements={settlements} sym={sym} getName={getName} showToast={showToast} addActivity={addActivity} ious={ious} setIous={setIous}/>}
+        {tab==='reports'&&<ReportsTab expenses={expenses} catTotals={catTotals} monthlyTotals={monthlyTotals} sym={sym} totalSpent={totalSpent} people={people} exportPDF={exportPDF} requestNotif={requestNotif} budgets={budgets} setBudgets={setBudgets} convert={convert} showToast={showToast} handleQR={handleQR}/>}
+        {tab==='people'&&<PeopleTab people={people} setPeople={setPeople} expenses={expenses} showToast={showToast} addActivity={addActivity} balances={balances} sym={sym}/>}
+        {tab==='more'&&<MoreTab theme={theme} setTheme={setTheme} baseCurrency={baseCurrency} setBaseCurrency={setBaseCurrency} pinEnabled={pinEnabled} setPinEnabled={setPinEnabled} pin={pin} setPin={setPin} activity={activity} syncStatus={syncStatus} people={people} expenses={expenses} setPeople={setPeople} setExpenses={setExpenses} setIous={setIous} setActivity={setActivity} exportPDF={exportPDF} handleQR={handleQR} requestNotif={requestNotif} showToast={showToast} addActivity={addActivity}/>}
+      </div>
+
+      {/* Bottom nav */}
+      <div className="bottom-nav">
+        {[
+          {id:'expenses',icon:'💳',label:'Expenses'},
+          {id:'balances',icon:'⚖️',label:'Balances'},
+          {id:'add',icon:'＋',label:'Add',center:true},
+          {id:'reports',icon:'📊',label:'Reports'},
+          {id:'more',icon:'☰',label:'More'},
+        ].map(t=>(
+          <button key={t.id} className={`bnav-btn ${tab===t.id||(!t.center&&tab===t.id)?'active':''} ${t.center?'center-action':''}`}
+            onClick={()=>{if(t.center)setAddExpenseModal(true);else setTab(t.id);}}>
+            <span className="bnav-icon">{t.icon}</span>
+            <span className="bnav-label">{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Add Expense Modal */}
+      {addExpenseModal&&<AddExpenseModal people={people} baseCurrency={baseCurrency} sym={sym} onAdd={(exp)=>{
+        setExpenses(prev=>[exp,...prev]);
+        addActivity('💳',`Added expense: ${exp.description} ${sym}${convert(exp.amount,exp.currency||'USD').toFixed(2)}`);
+        showToast('✅ Expense added!');
+        if(Notification.permission==='granted')new Notification('SplitEase Pro',{body:`New: ${exp.description}`});
+        setAddExpenseModal(false);
+      }} onClose={()=>setAddExpenseModal(false)} showToast={showToast}/>}
+
+      {/* QR Modal */}
+      {showQR&&<div className="modal-overlay center" onClick={()=>setShowQR(false)}>
+        <div className="modal center-modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal-title">📱 Share Group</div>
+          <div className="modal-sub">Scan to import expense data on another device.</div>
+          <div id="qrcode"/>
+          <button className="btn btn-outline" onClick={()=>setShowQR(false)}>Close</button>
+        </div>
+      </div>}
+
+      <div className={`toast ${toastVis?'show':''}`}>{toast}</div>
+    </div>
+  );
+}
+
+// ─── ONBOARDING ───────────────────────────────────────────────
+function Onboarding({onDone}){
+  const[step,setStep]=useState(0);
+  const slides=[
+    {emoji:'💰',title:'Split bills smarter',desc:'Track every shared expense, split by any amount, and see exactly who owes what in real time.'},
+    {emoji:'📸',title:'Scan receipts instantly',desc:'Upload receipt photos and let OCR auto-detect amounts. No more manual entry errors.'},
+    {emoji:'📊',title:'Beautiful insights',desc:'Monthly reports, category breakdowns, budget alerts and full PDF exports at your fingertips.'},
+    {emoji:'🔒',title:'Private & secure',desc:'PIN lock, dark/light themes, multiple currencies — fully offline with local storage.'},
+  ];
+  return(
+    <div className="onboard">
+      <div className="onboard-slide">
+        <div className="bg-orbs"><div className="orb orb1"/><div className="orb orb2"/></div>
+        <div style={{position:'relative',zIndex:1,display:'flex',flexDirection:'column',alignItems:'center'}}>
+          <div className="onboard-emoji">{slides[step].emoji}</div>
+          <div className="onboard-title">{slides[step].title}</div>
+          <div className="onboard-desc">{slides[step].desc}</div>
+          <div className="onboard-dots">
+            {slides.map((_,i)=><div key={i} className={`onboard-dot ${i===step?'active':''}`}/>)}
+          </div>
+          {step<slides.length-1?(
+            <button className="btn" style={{width:200}} onClick={()=>setStep(s=>s+1)}>Next →</button>
+          ):(
+            <button className="btn" style={{width:200}} onClick={onDone}>Get Started 🚀</button>
+          )}
+          {step>0&&<button className="btn btn-outline btn-sm" style={{marginTop:12,width:200}} onClick={()=>setStep(s=>s-1)}>← Back</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LOCK SCREEN ──────────────────────────────────────────────
+function LockScreen({correctPin,onUnlock}){
+  const[input,setInput]=useState('');
+  const[error,setError]=useState(false);
+  const keys=['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  const press=k=>{
+    if(k==='⌫'){setInput(p=>p.slice(0,-1));return;}
+    if(k==='')return;
+    const next=input+k;
+    setInput(next);
+    if(next.length===4){
+      if(next===correctPin){onUnlock();}
+      else{setError(true);setTimeout(()=>{setError(false);setInput('');},600);}
+    }
+  };
+  return(
+    <div className="lock-screen">
+      <div className="lock-logo">SplitEase</div>
+      <div className="lock-sub">Enter PIN to unlock</div>
+      <div className="pin-display">
+        {[0,1,2,3].map(i=><div key={i} className={`pin-dot ${i<input.length?'filled':''}`}/>)}
+      </div>
+      <div className="pin-pad">
+        {keys.map((k,i)=><div key={i} className={`pin-key ${k==='⌫'?'del':''}`} onClick={()=>press(k)}>{k}</div>)}
+      </div>
+      {error&&<div className="pin-error">Incorrect PIN. Try again.</div>}
+    </div>
+  );
+}
+
+// ─── ADD EXPENSE MODAL ────────────────────────────────────────
+function AddExpenseModal({people,baseCurrency,sym,onAdd,onClose,showToast}){
+  const[desc,setDesc]=useState('');
+  const[amount,setAmount]=useState('');
+  const[currency,setCurrency]=useState(baseCurrency);
+  const[category,setCategory]=useState('food');
+  const[paidBy,setPaidBy]=useState('');
+  const[splitWith,setSplitWith]=useState([]);
+  const[splitType,setSplitType]=useState('equal');
+  const[customSplits,setCustomSplits]=useState({});
+  const[receipt,setReceipt]=useState(null);
+  const[recur,setRecur]=useState('none');
+  const[notes,setNotes]=useState('');
+  const[ocrActive,setOcrActive]=useState(false);
+  const[aiSuggest,setAiSuggest]=useState(null);
+
+  useEffect(()=>{
+    const cat=aiCategory(desc);
+    if(cat&&cat!==category){setAiSuggest(cat);}else{setAiSuggest(null);}
+  },[desc]);
+
+  const toggleSplit=id=>{
+    const sid=String(id);
+    setSplitWith(prev=>prev.includes(sid)?prev.filter(x=>x!==sid):[...prev,sid]);
+  };
+
+  const handleReceipt=e=>{
+    const file=e.target.files[0];if(!file)return;
+    setOcrActive(true);
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      setReceipt(ev.target.result);
+      // Simulate OCR
+      setTimeout(()=>{
+        setOcrActive(false);
+        const simulated=(Math.random()*100+10).toFixed(2);
+        setAmount(simulated);
+        showToast(`📸 OCR detected: ~$${simulated}`);
+      },2000);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const perPerson=splitWith.length>0&&amount?((parseFloat(amount)||0)/splitWith.length).toFixed(2):'0.00';
+
+  const submit=()=>{
+    if(!desc.trim()||!amount||!paidBy||splitWith.length===0){
+      showToast('⚠️ Fill all required fields');return;
+    }
+    const sw=splitWith.map(String);
+    const exp={
+      id:String(Date.now()),description:desc.trim(),amount:parseFloat(amount),
+      currency,category,paidBy:String(paidBy),splitWith:sw,
+      splitType,customSplits,receipt:receipt||null,
+      recur,notes:notes.trim(),date:new Date().toISOString(),
+    };
+    onAdd(exp);
+  };
+
+  const currSym=CURRENCIES.find(c=>c.code===currency)?.symbol||'$';
+
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-handle"/>
+        <div className="modal-title">Add Expense</div>
+
+        {/* AI suggestion */}
+        {aiSuggest&&aiSuggest!==category&&(
+          <div className="info-box" style={{cursor:'pointer',marginBottom:10}} onClick={()=>{setCategory(aiSuggest);setAiSuggest(null);}}>
+            🤖 AI suggests: <strong>{CATEGORIES.find(c=>c.id===aiSuggest)?.label}</strong> — tap to apply
+          </div>
+        )}
+
+        <div className="field">
+          <label>Description *</label>
+          <input type="text" placeholder="e.g. Dinner at Nobu" value={desc} onChange={e=>setDesc(e.target.value)}/>
+        </div>
+
+        <div className="row2">
+          <div className="field">
+            <label>Amount *</label>
+            <input type="number" step="0.01" placeholder="0.00" value={amount} onChange={e=>setAmount(e.target.value)}/>
+          </div>
+          <div className="field">
+            <label>Currency</label>
+            <select value={currency} onChange={e=>setCurrency(e.target.value)}>
+              {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.flag} {c.code}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="field">
+          <label>Category</label>
+          <div className="cat-grid">
+            {CATEGORIES.map(c=><div key={c.id} className={`cat-chip ${category===c.id?'sel':''}`} onClick={()=>setCategory(c.id)}>{c.emoji} {c.label}</div>)}
+          </div>
+        </div>
+
+        <div className="field">
+          <label>Paid By *</label>
+          <select value={paidBy} onChange={e=>setPaidBy(e.target.value)}>
+            <option value="">Select person</option>
+            {people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+
+        <div className="field">
+          <label>Split Type</label>
+          <div className="split-type-row">
+            {[{id:'equal',label:'⚖️ Equal'},{id:'percent',label:'% Percent'},{id:'custom',label:'✏️ Custom'}].map(t=>(
+              <div key={t.id} className={`split-type-btn ${splitType===t.id?'sel':''}`} onClick={()=>setSplitType(t.id)}>{t.label}</div>
+            ))}
+          </div>
+        </div>
+
+        {people.length>0&&(
+          <div className="field">
+            <label>Split Between * {splitWith.length>0&&`— ${currSym}${perPerson}/person`}</label>
+            <div className="split-grid">
+              {people.map(p=>{
+                const sid=String(p.id);const sel=splitWith.includes(sid);
+                return(
+                  <div key={p.id} className={`split-item ${sel?'sel':''}`} onClick={()=>toggleSplit(p.id)}>
+                    <div className="chk">{sel?'✓':''}</div>
+                    <span style={{fontSize:13,fontWeight:500}}>{p.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {splitType==='custom'&&splitWith.length>0&&(
+              <div style={{marginTop:10}}>
+                {splitWith.map(sid=>{
+                  const name=people.find(p=>String(p.id)===sid)?.name||'?';
+                  return(
+                    <div key={sid} className="row2" style={{marginBottom:6}}>
+                      <div style={{display:'flex',alignItems:'center',fontSize:13,color:'var(--t2)'}}>{name}</div>
+                      <input className="field input" type="number" step="0.01" placeholder="0.00"
+                        style={{background:'var(--s2)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',padding:'8px 10px',color:'var(--t1)',fontSize:14}}
+                        value={customSplits[sid]||''}
+                        onChange={e=>setCustomSplits(prev=>({...prev,[sid]:e.target.value}))}/>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="field">
+          <label>Recurring</label>
+          <div style={{display:'flex',gap:6}}>
+            {RECUR_OPTIONS.map(r=>(
+              <div key={r.id} className={`curr-chip ${recur===r.id?'sel':''}`} onClick={()=>setRecur(r.id)}>{r.label}</div>
+            ))}
+          </div>
+        </div>
+
+        <div className="field">
+          <label>📷 Receipt Photo</label>
+          <label className="receipt-zone">
+            <input type="file" accept="image/*" capture="environment" onChange={handleReceipt}/>
+            {ocrActive?(
+              <div style={{padding:10}}>
+                <div style={{fontSize:28,marginBottom:8}}>🔍</div>
+                <div style={{fontSize:13,color:'var(--t2)'}}>Scanning receipt with OCR...</div>
+                <div style={{width:'100%',height:3,background:'var(--border)',borderRadius:2,marginTop:10,overflow:'hidden'}}>
+                  <div style={{height:'100%',background:'var(--p)',animation:'scan 1s ease-in-out infinite',width:'40%'}}/>
+                </div>
+              </div>
+            ):receipt?(
+              <img src={receipt} className="receipt-thumb" alt="receipt"/>
+            ):(
+              <div><div style={{fontSize:28,marginBottom:6}}>📸</div><div style={{fontSize:13,color:'var(--t2)'}}>Tap to upload / capture receipt</div><div style={{fontSize:11,color:'var(--t3)',marginTop:4}}>OCR will auto-detect amount</div></div>
+            )}
+          </label>
+        </div>
+
+        <div className="field">
+          <label>Notes</label>
+          <textarea placeholder="Optional notes..." value={notes} onChange={e=>setNotes(e.target.value)}/>
+        </div>
+
+        <div className="btn-row">
+          <button className="btn" onClick={submit}>✅ Add Expense</button>
+          <button className="btn btn-outline btn-sm" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── EXPENSES TAB ─────────────────────────────────────────────
+function ExpensesTab({people,expenses,setExpenses,sym,convert,getName,baseCurrency,showToast,addActivity,pushUndo,undoStack,setUndoStack}){
+  const[filter,setFilter]=useState('all');
+  const[search,setSearch]=useState('');
+  const[expandedId,setExpandedId]=useState(null);
+
+  const filtered=useMemo(()=>{
+    return expenses.filter(e=>{
+      if(filter!=='all'&&e.category!==filter)return false;
+      if(search&&!e.description.toLowerCase().includes(search.toLowerCase()))return false;
+      return true;
+    });
+  },[expenses,filter,search]);
+
+  const deleteExp=id=>{
+    const exp=expenses.find(e=>e.id===id);
+    setExpenses(prev=>prev.filter(e=>e.id!==id));
+    pushUndo({label:`Deleted "${exp.description}"`,restore:()=>setExpenses(prev=>[exp,...prev])});
+    addActivity('🗑️',`Deleted expense: ${exp.description}`);
+  };
+
+  return(
+    <div className="fade-in">
+      <div className="sec-title">Expenses <span className="sec-badge">{filtered.length}</span></div>
+
+      {/* Search */}
+      <div className="field" style={{marginBottom:10}}>
+        <input type="text" placeholder="🔍 Search expenses..." value={search} onChange={e=>setSearch(e.target.value)} style={{background:'var(--s1)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-xs)',padding:'10px 13px',color:'var(--t1)',fontFamily:'Instrument Sans,sans-serif',fontSize:14,width:'100%',outline:'none'}}/>
+      </div>
+
+      {/* Filter chips */}
+      <div style={{display:'flex',gap:7,marginBottom:14,overflowX:'auto',paddingBottom:4,scrollbarWidth:'none'}}>
+        <div className={`cat-chip ${filter==='all'?'sel':''}`} onClick={()=>setFilter('all')}>All</div>
+        {CATEGORIES.map(c=><div key={c.id} className={`cat-chip ${filter===c.id?'sel':''}`} onClick={()=>setFilter(c.id)}>{c.emoji}</div>)}
+      </div>
+
+      {filtered.length===0&&(
+        <div className="empty"><div className="empty-icon">💳</div><div className="empty-title">No expenses</div><div className="empty-desc">{search?'Try a different search':'Tap + to add your first expense'}</div></div>
+      )}
+
+      {filtered.map(exp=>{
+        const cat=CATEGORIES.find(c=>c.id===exp.category)||CATEGORIES[7];
+        const expSym=CURRENCIES.find(c=>c.code===exp.currency)?.symbol||'$';
+        const grad=getGrad(getIdx(people,exp.paidBy));
+        const expanded=expandedId===exp.id;
+        const amtBase=convert(exp.amount,exp.currency||'USD');
+        return(
+          <div key={exp.id} className="exp-item" style={{'--item-color':cat.color}} onClick={()=>setExpandedId(expanded?null:exp.id)}>
+            <div style={{position:'absolute',left:0,top:0,bottom:0,width:3,background:cat.color,borderRadius:'3px 0 0 3px'}}/>
+            <div className="exp-top">
+              <div style={{flex:1}}>
+                <div className="exp-name">{exp.description}</div>
+                <div className="exp-meta">
+                  <span className="exp-tag" style={{background:`${cat.color}22`,color:cat.color}}>{cat.emoji} {cat.label}</span>
+                  <span style={{fontSize:11,color:'var(--t3)'}}>{fmtDate(exp.date)}</span>
+                  {exp.recur&&exp.recur!=='none'&&<span className="rec-badge">🔄 {exp.recur}</span>}
+                </div>
+                <div style={{fontSize:12,color:'var(--t2)',marginTop:5}}>
+                  Paid by <strong style={{color:'var(--t1)'}}>{getName(exp.paidBy)}</strong> · {exp.splitWith.length} people
+                </div>
+              </div>
+              <div>
+                <div className="exp-amount" style={{color:cat.color}}>{expSym}{exp.amount.toFixed(2)}</div>
+                {exp.currency!==baseCurrency&&<div style={{fontSize:10,color:'var(--t3)'}}>{sym}{amtBase.toFixed(2)}</div>}
+                <div className="exp-per">{expSym}{(exp.amount/Math.max(exp.splitWith.length,1)).toFixed(2)}/p</div>
+              </div>
+            </div>
+            {expanded&&(
+              <div className="exp-bottom">
+                <div style={{marginBottom:8,display:'flex',flexWrap:'wrap',gap:6}}>
+                  {exp.splitWith.map(id=>{
+                    const g=getGrad(getIdx(people,id));
+                    return<span key={id} style={{display:'inline-flex',alignItems:'center',gap:5,background:`${g[0]}22`,color:g[0],padding:'2px 8px',borderRadius:10,fontSize:11,fontWeight:600}}>{getName(id)}</span>;
+                  })}
+                </div>
+                {exp.notes&&<div style={{fontSize:12,color:'var(--t2)',marginBottom:8}}>📝 {exp.notes}</div>}
+                {exp.receipt&&<img src={exp.receipt} alt="receipt" style={{width:'100%',borderRadius:8,marginBottom:8,maxHeight:120,objectFit:'cover'}}/>}
+                <div className="exp-actions">
+                  <button className="btn btn-red btn-xs" onClick={e=>{e.stopPropagation();deleteExp(exp.id);}}>🗑️ Delete</button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── BALANCES TAB ─────────────────────────────────────────────
+function BalancesTab({people,expenses,balances,settlements,sym,getName,showToast,addActivity,ious,setIous}){
+  const[showIOU,setShowIOU]=useState(false);
+  const[iouForm,setIouForm]=useState({from:'',to:'',amount:'',desc:'',due:''});
+  const[payModal,setPayModal]=useState(null); // {from, to, amount}
+  const[settledIds,setSettledIds]=useState([]);
+
+  const addIOU=()=>{
+    if(!iouForm.from||!iouForm.to||!iouForm.amount){showToast('⚠️ Fill all IOU fields');return;}
+    setIous(prev=>[...prev,{id:String(Date.now()),...iouForm,amount:parseFloat(iouForm.amount),date:new Date().toISOString(),settled:false}]);
+    setIouForm({from:'',to:'',amount:'',desc:'',due:''});setShowIOU(false);
+    showToast('📝 IOU recorded!');addActivity('📝','Added IOU');
+  };
+
+  const settleIOU=id=>{
+    setIous(prev=>prev.map(i=>i.id===id?{...i,settled:true}:i));
+    showToast('✅ IOU settled!');
+  };
+
+  const handlePay=(pm,amount,fromName,toName)=>{
+    const note=`SplitEase: ${fromName} pays ${toName} — ${sym}${amount.toFixed(2)}`;
+    const deepLink=pm.getUrl(amount.toFixed(2),note);
+    if(pm.id==='cash'||pm.id==='bank'){
+      showToast(`💵 Mark ${fromName} → ${toName} as ${pm.name} payment!`);
+      return;
+    }
+    // Try app deep-link first, fallback to web
+    if(deepLink){
+      const appLink=document.createElement('a');
+      appLink.href=deepLink;
+      appLink.style.display='none';
+      document.body.appendChild(appLink);
+      appLink.click();
+      document.body.removeChild(appLink);
+      // Fallback to web after short delay if app not installed
+      setTimeout(()=>{
+        if(pm.webUrl){
+          const confirmed=window.confirm(`Couldn't open ${pm.name} app. Open ${pm.name} website instead?`);
+          if(confirmed)window.open(pm.webUrl,'_blank');
+        }
+      },1500);
+    } else if(pm.webUrl){
+      window.open(pm.webUrl,'_blank');
+    }
+    showToast(`💳 Opening ${pm.name}...`);
+  };
+
+  const markSettled=(s,idx)=>{
+    setSettledIds(prev=>[...prev,idx]);
+    showToast(`✅ ${getName(s.from)} settled with ${getName(s.to)}!`);
+    addActivity('✅',`${getName(s.from)} settled ${sym}${s.amount.toFixed(2)} with ${getName(s.to)}`);
+    setPayModal(null);
+  };
+
+  const activeSettlements=settlements.filter((_,i)=>!settledIds.includes(i));
+
+  return(
+    <div className="fade-in">
+      <div className="sec-title">Balances</div>
+
+      {people.length===0&&<div className="empty"><div className="empty-icon">⚖️</div><div className="empty-title">No people yet</div><div className="empty-desc">Add people in the People tab</div></div>}
+
+      {people.map((p,i)=>{
+        const bal=balances[String(p.id)]||0;
+        const grad=getGrad(i);
+        return(
+          <div key={p.id} className="bal-card">
+            <div className="avatar" style={{background:`linear-gradient(135deg,${grad[0]},${grad[1]})`}}>{p.name[0].toUpperCase()}</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:15}}>{p.name}</div>
+              <div style={{fontSize:12,color:'var(--t2)',marginTop:2}}>
+                {Math.abs(bal)<0.01?'✅ Settled up':bal>0?`Gets back ${sym}${bal.toFixed(2)}`:`Owes ${sym}${Math.abs(bal).toFixed(2)}`}
+              </div>
+            </div>
+            <div className="bal-amount" style={{color:bal>0.01?'var(--g)':bal<-0.01?'var(--r)':'var(--t3)'}}>
+              {bal>0.01?'+':''}{sym}{Math.abs(bal).toFixed(2)}
+            </div>
+          </div>
+        );
+      })}
+
+      {activeSettlements.length>0&&<>
+        <div className="divider"/>
+        <div className="sec-title">Settle Up <span className="sec-badge">{activeSettlements.length}</span></div>
+        {settlements.map((s,i)=>{
+          if(settledIds.includes(i))return null;
+          const fg=getGrad(getIdx(people,s.from));
+          return(
+            <div key={i} className="settle-card">
+              <div className="avatar avatar-sm" style={{background:`linear-gradient(135deg,${fg[0]},${fg[1]})`}}>{getName(s.from)[0].toUpperCase()}</div>
+              <div style={{flex:1,fontSize:13}}>
+                <strong>{getName(s.from)}</strong><span style={{color:'var(--t2)'}}> pays </span><strong>{getName(s.to)}</strong>
+              </div>
+              <div style={{fontFamily:'Cabinet Grotesk,sans-serif',fontWeight:800,color:'var(--p)',fontSize:16,marginRight:8}}>{sym}{s.amount.toFixed(2)}</div>
+              <button className="btn btn-green btn-xs" onClick={()=>setPayModal({...s,idx:i})}> Pay </button>
+            </div>
+          );
+        })}
+      </>}
+
+      {activeSettlements.length===0&&expenses.length>0&&(
+        <div className="info-box success-box">🎉 Everyone is settled up! No outstanding balances.</div>
+      )}
+
+      <div className="divider"/>
+      <div className="sec-title">IOUs <span className="sec-badge">{ious.filter(i=>!i.settled).length} active</span></div>
+      <button className="btn btn-outline" style={{marginBottom:12}} onClick={()=>setShowIOU(true)}>+ Add IOU / Personal Debt</button>
+
+      {ious.length===0&&<div style={{fontSize:13,color:'var(--t3)',marginBottom:10}}>Track personal debts outside group expenses.</div>}
+      {ious.map(iou=>(
+        <div key={iou.id} className="iou-card">
+          <div className="iou-header">
+            <div style={{fontWeight:700,fontSize:14}}>{getName(iou.from)} → {getName(iou.to)}</div>
+            <span className="iou-status" style={{background:iou.settled?'rgba(52,211,153,0.12)':'rgba(251,191,36,0.12)',color:iou.settled?'var(--g)':'var(--y)'}}>{iou.settled?'Settled':'Pending'}</span>
+          </div>
+          <div style={{fontSize:20,fontWeight:800,color:'var(--p)',marginBottom:4}}>{sym}{iou.amount.toFixed(2)}</div>
+          <div style={{fontSize:12,color:'var(--t2)'}}>{iou.desc} {iou.due&&`· Due ${iou.due}`}</div>
+          {!iou.settled&&<button className="btn btn-green btn-xs" style={{marginTop:10}} onClick={()=>settleIOU(iou.id)}>Mark Settled</button>}
+        </div>
+      ))}
+
+      {/* IOU Modal */}
+      {showIOU&&<div className="modal-overlay" onClick={()=>setShowIOU(false)}>
+        <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal-handle"/>
+          <div className="modal-title">Add IOU</div>
+          <div className="row2">
+            <div className="field"><label>From</label><select value={iouForm.from} onChange={e=>setIouForm(p=>({...p,from:e.target.value}))}><option value="">Select</option>{people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+            <div className="field"><label>To</label><select value={iouForm.to} onChange={e=>setIouForm(p=>({...p,to:e.target.value}))}><option value="">Select</option>{people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+          </div>
+          <div className="row2">
+            <div className="field"><label>Amount</label><input type="number" step="0.01" placeholder="0.00" value={iouForm.amount} onChange={e=>setIouForm(p=>({...p,amount:e.target.value}))}/></div>
+            <div className="field"><label>Due Date</label><input type="date" value={iouForm.due} onChange={e=>setIouForm(p=>({...p,due:e.target.value}))}/></div>
+          </div>
+          <div className="field"><label>Description</label><input type="text" placeholder="What for?" value={iouForm.desc} onChange={e=>setIouForm(p=>({...p,desc:e.target.value}))}/></div>
+          <div className="btn-row">
+            <button className="btn" onClick={addIOU}>Add IOU</button>
+            <button className="btn btn-outline btn-sm" onClick={()=>setShowIOU(false)}>Cancel</button>
+          </div>
+        </div>
+      </div>}
+
+      {/* Pay Modal */}
+      {payModal&&<div className="modal-overlay" onClick={()=>setPayModal(null)}>
+        <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal-handle"/>
+          <div className="modal-title">💳 Pay Now</div>
+          {/* Summary */}
+          <div style={{background:'var(--s2)',borderRadius:'var(--radius-sm)',padding:'16px',marginBottom:18,textAlign:'center'}}>
+            <div style={{fontSize:13,color:'var(--t2)',marginBottom:4}}>
+              <strong style={{color:'var(--t1)'}}>{getName(payModal.from)}</strong> pays <strong style={{color:'var(--t1)'}}>{getName(payModal.to)}</strong>
+            </div>
+            <div style={{fontFamily:'Cabinet Grotesk,sans-serif',fontSize:34,fontWeight:900,color:'var(--p)'}}>{sym}{payModal.amount.toFixed(2)}</div>
+          </div>
+
+          <div style={{fontSize:12,color:'var(--t2)',marginBottom:12,textTransform:'uppercase',letterSpacing:'0.5px',fontWeight:600}}>Choose payment method</div>
+
+          {/* Payment method grid */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+            {PAYMENT_METHODS.map(pm=>(
+              <button key={pm.id}
+                onClick={()=>handlePay(pm,payModal.amount,getName(payModal.from),getName(payModal.to))}
+                style={{
+                  background:'var(--s2)',border:`1.5px solid var(--border)`,
+                  borderRadius:'var(--radius-xs)',padding:'14px 12px',
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:6,
+                  cursor:'pointer',transition:'all 0.2s',
+                }}
+                onMouseOver={e=>{e.currentTarget.style.borderColor=pm.color;e.currentTarget.style.background=`${pm.color}18`;}}
+                onMouseOut={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.background='var(--s2)';}}
+              >
+                <span style={{fontSize:26}}>{pm.icon}</span>
+                <span style={{fontSize:13,fontWeight:700,color:'var(--t1)'}}>{pm.name}</span>
+                <span style={{fontSize:10,color:'var(--t3)'}}>{pm.desc}</span>
+              </button>
+            ))}
+          </div>
+
+          <div style={{background:'rgba(251,191,36,0.08)',border:'1px solid rgba(251,191,36,0.2)',borderRadius:'var(--radius-xs)',padding:'10px 13px',fontSize:12,color:'var(--y)',marginBottom:14,lineHeight:1.5}}>
+            ⚡ Tapping a payment method opens the app or website. Return here to mark as settled once done.
+          </div>
+
+          <div className="btn-row">
+            <button className="btn btn-green" onClick={()=>markSettled(payModal,payModal.idx)}>✅ Mark as Settled</button>
+            <button className="btn btn-outline btn-sm" onClick={()=>setPayModal(null)}>Cancel</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+// ─── REPORTS TAB ──────────────────────────────────────────────
+function ReportsTab({expenses,catTotals,monthlyTotals,sym,totalSpent,people,exportPDF,requestNotif,budgets,setBudgets,convert,showToast,handleQR}){
+  const[showBudget,setShowBudget]=useState(false);
+  const[budgetInput,setBudgetInput]=useState({});
+  const maxCat=Math.max(...Object.values(catTotals),1);
+  const catColors={food:'#fbbf24',transport:'#60a5fa',housing:'#a78bfa',entertainment:'#f472b6',utilities:'#34d399',shopping:'#fb923c',health:'#f87171',other:'#9ca3af'};
+  const sortedMonths=Object.entries(monthlyTotals).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);
+  const maxMonth=Math.max(...Object.values(monthlyTotals),1);
+
+  // Heatmap (last 35 days)
+  const heatmap=useMemo(()=>{
+    const days={};
+    expenses.forEach(e=>{
+      const d=new Date(e.date).toLocaleDateString();
+      days[d]=(days[d]||0)+1;
+    });
+    const cells=[];
+    for(let i=34;i>=0;i--){
+      const d=new Date();d.setDate(d.getDate()-i);
+      const key=d.toLocaleDateString();
+      cells.push({date:key,count:days[key]||0});
+    }
+    return cells;
+  },[expenses]);
+  const maxHeat=Math.max(...heatmap.map(h=>h.count),1);
+
+  const saveBudgets=()=>{
+    const parsed={};
+    Object.entries(budgetInput).forEach(([k,v])=>{if(v)parsed[k]=parseFloat(v);});
+    setBudgets(prev=>({...prev,...parsed}));
+    setShowBudget(false);showToast('💰 Budgets saved!');
+  };
+
+  return(
+    <div className="fade-in">
+      <div className="sec-title">Reports & Analytics</div>
+
+      {/* Stats grid */}
+      <div className="stats-grid">
+        {[
+          {label:'Total Spent',val:`${sym}${totalSpent.toFixed(2)}`},
+          {label:'Expenses',val:expenses.length},
+          {label:'Avg/Expense',val:expenses.length?`${sym}${(totalSpent/expenses.length).toFixed(2)}`:'-'},
+          {label:'People',val:people.length},
+        ].map(s=>(
+          <div key={s.label} className="stat-box">
+            <div className="stat-label">{s.label}</div>
+            <div className="stat-val">{s.val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Monthly spending */}
+      <div className="card">
+        <div className="sec-title" style={{fontSize:14,marginBottom:12}}>📅 Monthly Spending</div>
+        {sortedMonths.length===0?<div style={{fontSize:13,color:'var(--t3)'}}>No data yet</div>:sortedMonths.map(([k,v])=>(
+          <div key={k} className="month-row">
+            <div style={{fontSize:13,fontWeight:600}}>{fmtMonth(k)}</div>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <div style={{width:80,height:6,background:'var(--s3)',borderRadius:3,overflow:'hidden'}}>
+                <div style={{width:`${(v/maxMonth)*100}%`,height:'100%',background:'var(--p)',borderRadius:3}}/>
+              </div>
+              <div style={{fontFamily:'Cabinet Grotesk,sans-serif',fontWeight:700,fontSize:14,color:'var(--p)',minWidth:60,textAlign:'right'}}>{sym}{v.toFixed(2)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Category bars */}
+      <div className="card">
+        <div className="sec-title" style={{fontSize:14,marginBottom:12}}>🏷️ By Category</div>
+        {CATEGORIES.map(c=>{
+          const v=catTotals[c.id]||0;const limit=budgets[c.id];
+          const pct=(v/maxCat)*100;const overBudget=limit&&v>=limit;
+          return(
+            <div key={c.id} className="chart-bar-row">
+              <div className="chart-label">{c.emoji} {c.label}</div>
+              <div className="chart-track">
+                <div className="chart-fill" style={{width:`${pct}%`,background:overBudget?'var(--r)':catColors[c.id]}}/>
+              </div>
+              <div className="chart-val">{sym}{v.toFixed(0)}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Budget tracker */}
+      <div className="card">
+        <div className="sec-title" style={{fontSize:14,marginBottom:12}}>💰 Budget Tracker</div>
+        {CATEGORIES.filter(c=>budgets[c.id]).map(c=>{
+          const spent=catTotals[c.id]||0;const limit=budgets[c.id];
+          const pct=Math.min((spent/limit)*100,100);const over=spent>=limit;const warn=pct>=80;
+          return(
+            <div key={c.id} className="budget-row">
+              <div className="budget-header">
+                <span className="budget-name">{c.emoji} {c.label}</span>
+                <span className="budget-nums" style={{color:over?'var(--r)':warn?'var(--y)':'var(--t2)'}}>{sym}{spent.toFixed(0)} / {sym}{limit}</span>
+              </div>
+              <div className="budget-bar">
+                <div className="budget-fill" style={{width:`${pct}%`,background:over?'var(--r)':warn?'var(--y)':'var(--g)'}}/>
+              </div>
+            </div>
+          );
+        })}
+        {Object.keys(budgets).length===0&&<div style={{fontSize:13,color:'var(--t3)',marginBottom:10}}>No budgets set. Tap below to add limits.</div>}
+        <button className="btn btn-outline" style={{marginTop:8}} onClick={()=>{setBudgetInput({...budgets});setShowBudget(true);}}>⚙️ Set Budgets</button>
+      </div>
+
+      {/* Activity heatmap */}
+      <div className="card">
+        <div className="sec-title" style={{fontSize:14,marginBottom:8}}>📅 Activity (last 35 days)</div>
+        <div className="heatmap">
+          {heatmap.map((h,i)=>(
+            <div key={i} className="heat-cell" title={`${h.date}: ${h.count} expenses`}
+              style={{background:h.count===0?'var(--s3)':`rgba(124,111,255,${0.2+(h.count/maxHeat)*0.8})`}}/>
+          ))}
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:6,fontSize:10,color:'var(--t3)'}}>
+          <span>35 days ago</span><span>Today</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="sec-title" style={{marginTop:4}}>Quick Actions</div>
+      <div className="btn-row" style={{marginBottom:10}}>
+        <button className="btn" style={{flex:1}} onClick={exportPDF}>📄 PDF Export</button>
+        <button className="btn btn-blue" style={{flex:1}} onClick={()=>{
+          const d=JSON.stringify({people:undefined,expenses},null,2);
+          const b=new Blob([d],{type:'application/json'});
+          const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='splitease-data.json';a.click();
+          showToast('📦 JSON exported!');
+        }}>📦 JSON</button>
+      </div>
+      <div className="btn-row">
+        <button className="btn btn-outline" style={{flex:1}} onClick={requestNotif}>🔔 Notify</button>
+        <button className="btn btn-outline" style={{flex:1}} onClick={handleQR}>📱 QR Share</button>
+      </div>
+
+      {/* Budget modal */}
+      {showBudget&&<div className="modal-overlay" onClick={()=>setShowBudget(false)}>
+        <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal-handle"/>
+          <div className="modal-title">Set Monthly Budgets</div>
+          <div className="modal-sub">Set spending limits per category. You'll get alerted at 80%.</div>
+          {CATEGORIES.map(c=>(
+            <div key={c.id} className="field">
+              <label>{c.emoji} {c.label} limit</label>
+              <input type="number" step="1" placeholder="No limit" value={budgetInput[c.id]||''} onChange={e=>setBudgetInput(p=>({...p,[c.id]:e.target.value}))}/>
+            </div>
+          ))}
+          <div className="btn-row">
+            <button className="btn" onClick={saveBudgets}>Save Budgets</button>
+            <button className="btn btn-outline btn-sm" onClick={()=>setShowBudget(false)}>Cancel</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+// ─── PEOPLE TAB ───────────────────────────────────────────────
+function PeopleTab({people,setPeople,expenses,showToast,addActivity,balances,sym}){
+  const[name,setName]=useState('');
+  const[email,setEmail]=useState('');
+  const[phone,setPhone]=useState('');
+  const[showAdd,setShowAdd]=useState(false);
+
+  const add=()=>{
+    if(!name.trim()){showToast('⚠️ Enter a name');return;}
+    if(people.some(p=>p.name.toLowerCase()===name.trim().toLowerCase())){showToast('⚠️ Name already exists');return;}
+    const p={id:String(Date.now()),name:name.trim(),email:email.trim(),phone:phone.trim()};
+    setPeople(prev=>[...prev,p]);
+    setName('');setEmail('');setPhone('');setShowAdd(false);
+    showToast(`✅ ${p.name} added!`);addActivity('👤',`Added ${p.name} to the group`);
+  };
+
+  const remove=id=>{
+    const hasExp=expenses.some(e=>String(e.paidBy)===String(id)||e.splitWith.map(String).includes(String(id)));
+    if(hasExp){showToast('⚠️ Cannot remove — person has expenses');return;}
+    const p=people.find(x=>x.id===id);
+    setPeople(prev=>prev.filter(x=>x.id!==id));
+    showToast(`🗑️ ${p?.name} removed`);addActivity('🗑️',`Removed ${p?.name}`);
+  };
+
+  return(
+    <div className="fade-in">
+      <div className="sec-title">Group Members <span className="sec-badge">{people.length}</span></div>
+
+      <button className="btn" style={{marginBottom:14}} onClick={()=>setShowAdd(true)}>+ Add Person</button>
+
+      {people.length===0&&<div className="empty"><div className="empty-icon">👥</div><div className="empty-title">No members yet</div><div className="empty-desc">Add people to start splitting expenses</div></div>}
+
+      {people.map((p,i)=>{
+        const grad=getGrad(i);
+        const expCount=expenses.filter(e=>String(e.paidBy)===String(p.id)||e.splitWith.map(String).includes(String(p.id))).length;
+        const bal=balances[String(p.id)]||0;
+        return(
+          <div key={p.id} className="person-card">
+            <div className="avatar" style={{background:`linear-gradient(135deg,${grad[0]},${grad[1]})`}}>{p.name[0].toUpperCase()}</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:15}}>{p.name}</div>
+              <div style={{fontSize:12,color:'var(--t2)',marginTop:2,display:'flex',gap:10,flexWrap:'wrap'}}>
+                {p.email&&<span>✉️ {p.email}</span>}
+                {p.phone&&<span>📱 {p.phone}</span>}
+                <span>💳 {expCount} expenses</span>
+              </div>
+              <div style={{fontSize:12,marginTop:3,color:bal>0.01?'var(--g)':bal<-0.01?'var(--r)':'var(--t3)',fontWeight:600}}>
+                {Math.abs(bal)<0.01?'Settled':bal>0?`+${sym}${bal.toFixed(2)}`:`-${sym}${Math.abs(bal).toFixed(2)}`}
+              </div>
+            </div>
+            <button className="btn btn-red btn-xs" onClick={()=>remove(p.id)}>Remove</button>
+          </div>
+        );
+      })}
+
+      {/* Invite */}
+      {people.length>0&&(
+        <div className="card" style={{marginTop:8}}>
+          <div style={{fontSize:13,fontWeight:600,marginBottom:10}}>📨 Invite to Group</div>
+          <div className="btn-row">
+            {['WhatsApp','SMS','Email','Copy Link'].map(m=>(
+              <button key={m} className="btn btn-outline btn-xs" onClick={()=>showToast(`📤 Opening ${m}...`)}>{m}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showAdd&&<div className="modal-overlay" onClick={()=>setShowAdd(false)}>
+        <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal-handle"/>
+          <div className="modal-title">Add Person</div>
+          <div className="field"><label>Name *</label><input type="text" placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} onKeyPress={e=>e.key==='Enter'&&add()}/></div>
+          <div className="field"><label>Email</label><input type="email" placeholder="email@example.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+          <div className="field"><label>Phone</label><input type="tel" placeholder="+1 234 567 8900" value={phone} onChange={e=>setPhone(e.target.value)}/></div>
+          <div className="btn-row">
+            <button className="btn" onClick={add}>Add Person</button>
+            <button className="btn btn-outline btn-sm" onClick={()=>setShowAdd(false)}>Cancel</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+// ─── MORE TAB ─────────────────────────────────────────────────
+function MoreTab({theme,setTheme,baseCurrency,setBaseCurrency,pinEnabled,setPinEnabled,pin,setPin,activity,syncStatus,people,expenses,setPeople,setExpenses,setIous,setActivity,exportPDF,handleQR,requestNotif,showToast,addActivity}){
+  const[showPINSetup,setShowPINSetup]=useState(false);
+  const[newPin,setNewPin]=useState('');
+  const sym=CURRENCIES.find(c=>c.code===baseCurrency)?.symbol||'$';
+
+  const setupPIN=()=>{
+    if(newPin.length!==4){showToast('⚠️ PIN must be 4 digits');return;}
+    setPin(newPin);setPinEnabled(true);setShowPINSetup(false);setNewPin('');
+    showToast('🔒 PIN enabled!');addActivity('🔒','PIN lock enabled');
+  };
+
+  const clearAll=()=>{
+    if(window.confirm('Delete ALL data? This cannot be undone.'))
+    {setPeople([]);setExpenses([]);setIous([]);setActivity([]);localStorage.clear();showToast('🗑️ All data cleared');}
+  };
+
+  return(
+    <div className="fade-in">
+      <div className="sec-title">Settings & More</div>
+
+      {/* Sync */}
+      <div className="card">
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <span className={`sync-dot ${syncStatus==='live'?'live':syncStatus==='syncing'?'syncing':'off'}`}/>
+          <span style={{fontSize:14,fontWeight:600}}>{syncStatus==='live'?'Auto-saved & synced':'Syncing...'}</span>
+          <span style={{marginLeft:'auto',fontSize:11,color:syncStatus==='live'?'var(--g)':'var(--y)',fontWeight:700,padding:'3px 8px',borderRadius:10,background:syncStatus==='live'?'rgba(52,211,153,0.1)':'rgba(251,191,36,0.1)'}}>{syncStatus==='live'?'LIVE':'...'}</span>
+        </div>
+        <div style={{fontSize:12,color:'var(--t2)',marginTop:8}}>Data auto-saves to your browser. Use QR code to share across devices.</div>
+      </div>
+
+      {/* Theme */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,marginBottom:10,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'0.5px'}}>🎨 Appearance</div>
+        <div style={{display:'flex',gap:8}}>
+          {['dark','light'].map(t=>(
+            <div key={t} className={`curr-chip ${theme===t?'sel':''}`} onClick={()=>{setTheme(t);showToast(`${t==='dark'?'🌙':'☀️'} ${t} mode`);}}>{t==='dark'?'🌙 Dark':'☀️ Light'}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Currency */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,marginBottom:10,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'0.5px'}}>💱 Base Currency</div>
+        <div className="curr-chips">
+          {CURRENCIES.map(c=>(
+            <div key={c.code} className={`curr-chip ${baseCurrency===c.code?'sel':''}`} onClick={()=>{setBaseCurrency(c.code);showToast(`💱 Currency → ${c.code}`);}}>
+              {c.flag} {c.code}
+            </div>
+          ))}
+        </div>
+        <div style={{fontSize:12,color:'var(--t2)',marginTop:10}}>All balances shown in {sym} {baseCurrency}</div>
+      </div>
+
+      {/* Security */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,marginBottom:10,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'0.5px'}}>🔒 Security</div>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:600}}>PIN Lock</div>
+            <div style={{fontSize:12,color:'var(--t2)'}}>Require PIN to open app</div>
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            {pinEnabled&&<button className="btn btn-red btn-xs" onClick={()=>{setPinEnabled(false);setPin('');showToast('🔓 PIN disabled');}}>Disable</button>}
+            <button className={`btn btn-xs ${pinEnabled?'btn-outline':'btn-green'}`} onClick={()=>setShowPINSetup(true)}>{pinEnabled?'Change PIN':'Enable PIN'}</button>
+          </div>
+        </div>
+        {pinEnabled&&<div className="info-box success-box" style={{marginBottom:0}}>🔒 PIN protection is active</div>}
+      </div>
+
+      {/* Actions */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,marginBottom:10,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'0.5px'}}>⚡ Quick Actions</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          {[
+            {label:'📄 Export PDF',action:exportPDF},
+            {label:'📱 QR Code',action:handleQR},
+            {label:'🔔 Notifications',action:requestNotif},
+            {label:'📦 Export JSON',action:()=>{const d=JSON.stringify({people,expenses},null,2);const b=new Blob([d],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='splitease.json';a.click();showToast('📦 Exported!');}},
+          ].map(a=>(
+            <button key={a.label} className="btn btn-outline" style={{fontSize:12,padding:'10px'}} onClick={a.action}>{a.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Activity Feed */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,marginBottom:10,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'0.5px'}}>📋 Activity Feed</div>
+        {activity.length===0?<div style={{fontSize:13,color:'var(--t3)'}}>No activity yet.</div>:activity.slice(0,15).map(a=>(
+          <div key={a.id} className="activity-item">
+            <div className="activity-dot" style={{background:'var(--s2)',fontSize:16}}>{a.emoji}</div>
+            <div style={{flex:1}}>
+              <div className="activity-text">{a.text}</div>
+              <div className="activity-time">{fmtDate(a.time)} {fmtTime(a.time)}</div>
+            </div>
+          </div>
+        ))}
+        {activity.length>15&&<div style={{fontSize:12,color:'var(--t3)',marginTop:8,textAlign:'center'}}>+{activity.length-15} more activities</div>}
+      </div>
+
+      {/* Danger */}
+      <div className="card card-danger">
+        <div style={{fontSize:13,fontWeight:700,marginBottom:10,color:'var(--r)',textTransform:'uppercase',letterSpacing:'0.5px'}}>⚠️ Danger Zone</div>
+        <button className="btn btn-red" onClick={clearAll}>🗑️ Clear All Data</button>
+      </div>
+
+      <div style={{textAlign:'center',padding:'20px 0',color:'var(--t3)',fontSize:12}}>
+        SplitEase Pro v3.0 • Built with ❤️<br/>
+        <span style={{fontSize:10}}>All data stored locally on your device</span>
+      </div>
+
+      {/* PIN Setup Modal */}
+      {showPINSetup&&<div className="modal-overlay center" onClick={()=>setShowPINSetup(false)}>
+        <div className="modal center-modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal-title">🔒 Set PIN</div>
+          <div className="modal-sub">Choose a 4-digit PIN to lock the app.</div>
+          <div className="field"><label>4-Digit PIN</label><input type="password" maxLength={4} pattern="[0-9]*" inputMode="numeric" placeholder="••••" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,'').slice(0,4))}/></div>
+          <div className="btn-row">
+            <button className="btn btn-green" onClick={setupPIN}>Set PIN</button>
+            <button className="btn btn-outline btn-sm" onClick={()=>setShowPINSetup(false)}>Cancel</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+ReactDOM.render(<App/>,document.getElementById('root'));
+</script>
+</body>
+</html>
