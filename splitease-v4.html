@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#0c0c14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SplitEase">
+<title>SplitEase Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#0c0c14;--c1:#13131f;--c2:#1a1a2c;--c3:#222238;
+  --bd:#2c2c48;--bd2:#3a3a58;
+  --ac:#7b6ff0;--ac2:#f06292;--ac3:#4db6ac;--ac4:#ffb74d;
+  --gr:#4caf82;--rd:#ef5350;--yw:#ffca28;--bl:#42a5f5;
+  --t1:#eeeeff;--t2:#9090b8;--t3:#606088;
+  --r1:20px;--r2:14px;--r3:9px;
+}
+[data-theme=light]{
+  --bg:#f0f0fa;--c1:#fff;--c2:#f5f5ff;--c3:#eaeaf8;
+  --bd:#d8d8ee;--bd2:#c4c4e0;
+  --t1:#0c0c20;--t2:#50508a;--t3:#8080a8;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;overflow-x:hidden}
+.glow1{position:fixed;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(123,111,240,.15),transparent 70%);top:-150px;left:-150px;pointer-events:none;z-index:0;animation:g1 14s ease-in-out infinite}
+.glow2{position:fixed;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(240,98,146,.1),transparent 70%);bottom:-100px;right:-100px;pointer-events:none;z-index:0;animation:g1 10s ease-in-out infinite reverse}
+@keyframes g1{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,30px)}}
+.app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;z-index:1}
+
+/* ONBOARD */
+.ob-wrap{position:fixed;inset:0;z-index:900;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center}
+.ob-icon{font-size:72px;margin-bottom:20px;animation:bob 2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+.ob-title{font-size:30px;font-weight:900;background:linear-gradient(135deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px}
+.ob-desc{font-size:15px;color:var(--t2);line-height:1.7;margin-bottom:28px;max-width:300px}
+.ob-dots{display:flex;gap:8px;justify-content:center;margin-bottom:28px}
+.ob-dot{width:8px;height:8px;border-radius:50%;background:var(--bd2);transition:all .3s}
+.ob-dot.on{width:22px;border-radius:4px;background:var(--ac)}
+
+/* LOCK */
+.lock-wrap{position:fixed;inset:0;z-index:950;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px}
+.lock-title{font-size:32px;font-weight:900;background:linear-gradient(135deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+.lock-sub{font-size:14px;color:var(--t2);margin-bottom:36px}
+.pin-dots{display:flex;gap:14px;margin-bottom:30px}
+.pdot{width:15px;height:15px;border-radius:50%;border:2px solid var(--bd2);transition:all .2s}
+.pdot.on{background:var(--ac);border-color:var(--ac);transform:scale(1.2)}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:220px}
+.pkey{height:60px;background:var(--c1);border:1px solid var(--bd);border-radius:var(--r2);font-size:22px;font-weight:700;color:var(--t1);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;user-select:none}
+.pkey:active{background:var(--ac);color:#fff;transform:scale(.93)}
+.pin-err{color:var(--rd);font-size:13px;margin-top:10px;animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
+/* HEADER */
+.hdr{padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;background:rgba(12,12,20,.88);backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:background .3s}
+[data-theme=light] .hdr{background:rgba(240,240,250,.88)}
+.hdr-logo{font-size:20px;font-weight:900;background:linear-gradient(135deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+.hdr-sub{font-size:11px;color:var(--t3);margin-top:1px;display:flex;align-items:center;gap:5px}
+.sdot{width:6px;height:6px;border-radius:50%}
+.sdot.live{background:var(--gr);box-shadow:0 0 5px var(--gr)}
+.sdot.sync{background:var(--yw);animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-right{display:flex;gap:8px}
+.ibtn{width:36px;height:36px;border-radius:var(--r3);background:var(--c1);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;transition:all .2s;position:relative}
+.ibtn:active{transform:scale(.9)}
+.nbadge{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:var(--rd);font-size:9px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center}
+
+/* SUMMARY */
+.sumbar{display:flex;gap:9px;padding:12px 16px;overflow-x:auto;scrollbar-width:none}
+.sumbar::-webkit-scrollbar{display:none}
+.spill{flex:0 0 auto;background:var(--c1);border:1px solid var(--bd);border-radius:50px;padding:9px 16px;display:flex;align-items:center;gap:8px;transition:border-color .2s}
+.spill:hover{border-color:var(--ac)}
+.spill-v{font-size:14px;font-weight:800}
+.spill-l{font-size:10px;color:var(--t2);margin-top:1px}
+
+/* NAV */
+.topnav{display:flex;padding:0 10px;border-bottom:1px solid var(--bd);overflow-x:auto;scrollbar-width:none;background:var(--bg);position:sticky;top:52px;z-index:49}
+.topnav::-webkit-scrollbar{display:none}
+.tnb{flex:0 0 auto;padding:11px 13px;background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px;text-transform:uppercase;letter-spacing:.4px;transition:all .2s}
+.tnb.on{color:var(--ac);border-bottom-color:var(--ac)}
+
+/* CONTENT */
+.content{flex:1;padding:14px 14px 90px;overflow-y:auto}
+
+/* SECTION */
+.stitle{font-size:17px;font-weight:800;margin-bottom:13px;display:flex;align-items:center;justify-content:space-between}
+.sbadge{font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:rgba(123,111,240,.14);color:var(--ac);font-weight:500}
+
+/* CARDS */
+.card{background:var(--c1);border:1px solid var(--bd);border-radius:var(--r1);padding:16px;margin-bottom:11px}
+.card-danger{border-color:rgba(239,83,80,.3)}
+
+/* GROUPS */
+.group-card{background:var(--c1);border:1px solid var(--bd);border-radius:var(--r1);padding:16px;margin-bottom:10px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:13px}
+.group-card:hover{border-color:var(--ac);transform:translateX(2px)}
+.group-card.active{border-color:var(--ac);background:rgba(123,111,240,.06)}
+.group-icon{width:46px;height:46px;border-radius:var(--r2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.group-info{flex:1;min-width:0}
+.group-name{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.group-meta{font-size:12px;color:var(--t2);margin-top:3px}
+
+/* FORM */
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600}
+.finp{width:100%;background:var(--c2);border:1.5px solid var(--bd);border-radius:var(--r3);padding:11px 12px;color:var(--t1);font-family:'Outfit',sans-serif;font-size:14px;outline:none;transition:all .2s;-webkit-appearance:none}
+.finp:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(123,111,240,.1)}
+.finp option{background:var(--c2)}
+textarea.finp{height:66px;resize:none;line-height:1.5}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+/* CHIPS */
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{padding:6px 12px;border-radius:20px;background:var(--c2);border:1.5px solid var(--bd);font-size:12px;color:var(--t2);cursor:pointer;font-weight:500;transition:all .2s;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.chip.on{background:rgba(123,111,240,.12);border-color:var(--ac);color:var(--ac)}
+
+/* SPLIT ITEMS */
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sitem{background:var(--c2);border:1.5px solid var(--bd);border-radius:var(--r3);padding:9px 11px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:all .2s}
+.sitem.on{background:rgba(123,111,240,.1);border-color:var(--ac)}
+.schk{width:18px;height:18px;border-radius:5px;border:2px solid var(--bd2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s}
+.sitem.on .schk{background:var(--ac);border-color:var(--ac);color:#fff}
+
+/* BUTTONS */
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:12px 18px;background:linear-gradient(135deg,var(--ac),#9c4fd6);color:#fff;border:none;border-radius:var(--r3);font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;width:100%}
+.btn:hover{transform:translateY(-1px);box-shadow:0 5px 18px rgba(123,111,240,.35)}
+.btn:active{transform:translateY(1px);box-shadow:none}
+.btn-sm{font-size:12px;padding:8px 13px;width:auto}
+.btn-xs{font-size:11px;padding:6px 10px;width:auto;border-radius:6px}
+.btn-ol{background:transparent;border:1.5px solid var(--bd);color:var(--t2)}
+.btn-ol:hover{background:var(--c2);color:var(--t1);box-shadow:none}
+.btn-gr{background:linear-gradient(135deg,var(--gr),#1b8a5a)}
+.btn-rd{background:linear-gradient(135deg,var(--rd),#b71c1c)}
+.btn-yw{background:linear-gradient(135deg,var(--yw),#e65100);color:#111}
+.btn-bl{background:linear-gradient(135deg,var(--bl),#1565c0)}
+.btn-row{display:flex;gap:8px}
+
+/* EXPENSE ITEMS */
+.expitem{background:var(--c1);border:1px solid var(--bd);border-radius:var(--r1);padding:14px;margin-bottom:9px;transition:all .2s;position:relative;overflow:hidden;cursor:pointer}
+.expitem:hover{border-color:var(--bd2);transform:translateX(2px)}
+.expitem-bar{position:absolute;left:0;top:0;bottom:0;width:3px}
+.exp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.exp-name{font-size:15px;font-weight:700;margin-bottom:4px}
+.exp-meta{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.etag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
+.exp-amt{font-size:17px;font-weight:800;text-align:right}
+.exp-per{font-size:11px;color:var(--t2);margin-top:2px;text-align:right}
+.exp-detail{margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);font-size:12px;color:var(--t2)}
+
+/* RECEIPT */
+.rzone{border:2px dashed var(--bd2);border-radius:var(--r3);padding:16px;text-align:center;cursor:pointer;transition:all .2s}
+.rzone:hover{border-color:var(--ac);background:rgba(123,111,240,.04)}
+.rzone input{display:none}
+
+/* PERSON / BALANCE */
+.pcard{background:var(--c1);border:1px solid var(--bd);border-radius:var(--r1);padding:13px;margin-bottom:9px;display:flex;align-items:center;gap:11px;transition:all .2s}
+.pcard:hover{border-color:var(--bd2)}
+.av{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;flex-shrink:0}
+.av40{width:40px;height:40px;font-size:16px}
+.av32{width:32px;height:32px;font-size:13px}
+.av26{width:26px;height:26px;font-size:10px}
+.balamt{font-size:18px;font-weight:800;margin-left:auto}
+
+/* SETTLE */
+.scard{background:var(--c1);border:1px solid var(--bd);border-radius:var(--r1);padding:13px;margin-bottom:9px;display:flex;align-items:center;gap:10px}
+
+/* ITEM SPLIT */
+.irow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd)}
+.irow:last-child{border-bottom:none}
+
+/* REPORTS */
+.barrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.barlabel{font-size:12px;color:var(--t2);width:68px;flex-shrink:0}
+.bartrack{flex:1;height:7px;background:var(--c3);border-radius:4px;overflow:hidden}
+.barfill{height:100%;border-radius:4px;transition:width .6s ease}
+.barval{font-size:11px;color:var(--t2);width:50px;text-align:right}
+.mrow{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;background:var(--c2);border-radius:var(--r3);margin-bottom:7px}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}
+.statbox{background:var(--c2);border-radius:var(--r3);padding:13px}
+.statlabel{font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.statval{font-size:20px;font-weight:800}
+.hmap{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:8px}
+.hcell{aspect-ratio:1;border-radius:3px;background:var(--c3);cursor:pointer;transition:transform .15s}
+.hcell:hover{transform:scale(1.3)}
+.budrow{margin-bottom:13px}
+.budhdr{display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px}
+.budbar{height:7px;background:var(--c3);border-radius:4px;overflow:hidden}
+.budfill{height:100%;border-radius:4px;transition:width .6s}
+
+/* MODAL */
+.moverlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;justify-content:center;z-index:200;padding:16px;animation:fin .2s ease}
+.moverlay.center{align-items:center}
+@keyframes fin{from{opacity:0}to{opacity:1}}
+.mbox{background:var(--c1);border:1px solid var(--bd);border-radius:var(--r1) var(--r1) 0 0;padding:22px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;animation:sup .25s ease}
+.mbox.ctr{border-radius:var(--r1);max-width:360px}
+@keyframes sup{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.mhandle{width:38px;height:4px;background:var(--bd2);border-radius:2px;margin:0 auto 16px}
+.mtitle{font-size:19px;font-weight:800;margin-bottom:6px}
+.msub{font-size:13px;color:var(--t2);margin-bottom:18px;line-height:1.5}
+#qrcode{display:flex;justify-content:center;margin:14px 0}
+#qrcode canvas{border-radius:10px}
+
+/* PAYMENT MODAL */
+.pm-summary{background:var(--c2);border-radius:var(--r2);padding:16px;text-align:center;margin-bottom:16px}
+.pm-amt{font-size:36px;font-weight:900;color:var(--ac)}
+.pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+.pm-btn{background:var(--c2);border:1.5px solid var(--bd);border-radius:var(--r3);padding:13px 10px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;transition:all .2s}
+.pm-btn:hover{border-color:var(--ac);background:rgba(123,111,240,.06)}
+.pm-icon{font-size:24px}
+.pm-name{font-size:13px;font-weight:700}
+.pm-desc{font-size:10px;color:var(--t3)}
+
+/* TOAST */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--c1);border:1px solid var(--bd);padding:11px 20px;border-radius:50px;font-size:13px;font-weight:600;z-index:300;transition:all .3s;opacity:0;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.35);white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:rgba(12,12,20,.92);backdrop-filter:blur(20px);border-top:1px solid var(--bd);display:flex;padding:7px 0 14px;z-index:100}
+[data-theme=light] .bnav{background:rgba(240,240,250,.92)}
+.nbt{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:5px 0;transition:all .2s}
+.nbt-ic{font-size:19px;transition:transform .2s}
+.nbt-lb{font-size:10px;color:var(--t3);font-weight:600;transition:color .2s}
+.nbt.on .nbt-ic{transform:scale(1.15)}
+.nbt.on .nbt-lb{color:var(--ac)}
+.nbt.fab .nbt-ic{background:linear-gradient(135deg,var(--ac),var(--ac2));width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 14px rgba(123,111,240,.4)}
+
+/* MISC */
+.divider{height:1px;background:var(--bd);margin:14px 0}
+.empty{text-align:center;padding:44px 20px;color:var(--t3)}
+.empty-ic{font-size:42px;opacity:.35;margin-bottom:11px}
+.empty-title{font-size:15px;font-weight:800;color:var(--t2);margin-bottom:5px}
+.infobox{background:rgba(123,111,240,.07);border:1px solid rgba(123,111,240,.17);border-radius:var(--r3);padding:11px 13px;font-size:13px;color:var(--t2);margin-bottom:13px;line-height:1.6}
+.warnbox{background:rgba(255,202,40,.07);border-color:rgba(255,202,40,.2);color:var(--yw)}
+.succbox{background:rgba(76,175,130,.07);border-color:rgba(76,175,130,.2);color:var(--gr)}
+.recbadge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;background:rgba(255,202,40,.12);color:var(--yw)}
+.fade-in{animation:fiu .28s ease}
+@keyframes fiu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:380px){.content{padding:11px 11px 90px}}
+
+/* ITEM SPLIT BILL FEATURE */
+.item-split-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)}
+.item-split-row:last-child{border-bottom:none}
+.item-who{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+.item-tag{font-size:10px;padding:2px 7px;border-radius:8px;cursor:pointer;font-weight:600;border:1.5px solid var(--bd);transition:all .15s}
+.item-tag.picked{border-color:var(--ac);color:var(--ac);background:rgba(123,111,240,.1)}
+
+/* YEAR IN REVIEW */
+.yir-card{background:linear-gradient(135deg,var(--ac),var(--ac2));border-radius:var(--r1);padding:20px;color:#fff;margin-bottom:11px;position:relative;overflow:hidden}
+.yir-card::before{content:'';position:absolute;top:-40px;right:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.08)}
+.yir-title{font-size:13px;font-weight:600;opacity:.85;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.yir-val{font-size:28px;font-weight:900;margin-bottom:2px}
+.yir-sub{font-size:12px;opacity:.75}
+
+/* VOICE INPUT */
+.voice-btn{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--ac2));border:none;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(123,111,240,.4);margin:0 auto}
+.voice-btn:active{transform:scale(.93)}
+.voice-btn.listening{animation:vp 1s ease-in-out infinite}
+@keyframes vp{0%,100%{box-shadow:0 4px 16px rgba(123,111,240,.4)}50%{box-shadow:0 4px 30px rgba(123,111,240,.8),0 0 0 12px rgba(123,111,240,.15)}}
+
+/* SWIPE */
+.swipe-wrap{position:relative;overflow:hidden;border-radius:var(--r1);margin-bottom:9px}
+.swipe-bg-left{position:absolute;left:0;top:0;bottom:0;width:80px;background:var(--gr);display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:var(--r1) 0 0 var(--r1)}
+.swipe-bg-right{position:absolute;right:0;top:0;bottom:0;width:80px;background:var(--rd);display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:0 var(--r1) var(--r1) 0}
+.swipe-item{position:relative;background:var(--c1);transition:transform .2s;touch-action:pan-y}
+
+/* ACTIVITY */
+.act-item{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--bd)}
+.act-item:last-child{border-bottom:none}
+.act-dot{width:32px;height:32px;border-radius:50%;background:var(--c2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:1px}
+.act-time{font-size:11px;color:var(--t3);margin-top:3px}
+
+/* TIP CALCULATOR */
+.tip-row{display:flex;gap:7px;margin-bottom:10px}
+.tip-opt{flex:1;padding:9px;border-radius:var(--r3);background:var(--c2);border:1.5px solid var(--bd);font-size:13px;font-weight:700;text-align:center;cursor:pointer;transition:all .2s}
+.tip-opt.on{background:rgba(123,111,240,.12);border-color:var(--ac);color:var(--ac)}
+
+/* CONFETTI */
+.confetti-piece{position:fixed;width:8px;height:8px;border-radius:2px;top:-10px;animation:fall linear forwards;pointer-events:none;z-index:999}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:0}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo}=React;
+
+/* ── CONSTANTS ──────────────────────────────────────── */
+const CATS=[
+  {id:'food',label:'Food',emoji:'🍽️',color:'#ffb74d'},
+  {id:'transport',label:'Transport',emoji:'🚗',color:'#42a5f5'},
+  {id:'housing',label:'Housing',emoji:'🏠',color:'#ab47bc'},
+  {id:'entertainment',label:'Fun',emoji:'🎉',color:'#f06292'},
+  {id:'utilities',label:'Utilities',emoji:'💡',color:'#4db6ac'},
+  {id:'shopping',label:'Shopping',emoji:'🛍️',color:'#ff7043'},
+  {id:'health',label:'Health',emoji:'💊',color:'#ef5350'},
+  {id:'other',label:'Other',emoji:'📦',color:'#90a4ae'},
+];
+const CURRENCIES=[
+  {code:'USD',sym:'$',rate:1,flag:'🇺🇸'},
+  {code:'EUR',sym:'€',rate:0.92,flag:'🇪🇺'},
+  {code:'GBP',sym:'£',rate:0.79,flag:'🇬🇧'},
+  {code:'INR',sym:'₹',rate:83.12,flag:'🇮🇳'},
+  {code:'CAD',sym:'C$',rate:1.36,flag:'🇨🇦'},
+  {code:'AUD',sym:'A$',rate:1.53,flag:'🇦🇺'},
+  {code:'JPY',sym:'¥',rate:149.5,flag:'🇯🇵'},
+  {code:'SGD',sym:'S$',rate:1.34,flag:'🇸🇬'},
+];
+const PAYMENT_METHODS=[
+  {id:'paypal',name:'PayPal',icon:'💙',color:'#003087',getUrl:(a,n)=>`https://www.paypal.com/paypalme/pay?amount=${a}&note=${encodeURIComponent(n)}`,web:'https://www.paypal.com/myaccount/transfer/homepage/pay',desc:'Send via PayPal'},
+  {id:'venmo',name:'Venmo',icon:'💜',color:'#3D95CE',getUrl:(a,n)=>`venmo://paycharge?txn=pay&amount=${a}&note=${encodeURIComponent(n)}`,web:'https://venmo.com/',desc:'Open Venmo app'},
+  {id:'gpay',name:'Google Pay',icon:'🟢',color:'#4285F4',getUrl:(a,n)=>`tez://upi/pay?am=${a}&tn=${encodeURIComponent(n)}&cu=INR`,web:'https://pay.google.com',desc:'Pay via GPay/UPI'},
+  {id:'phonepe',name:'PhonePe',icon:'🟣',color:'#5f259f',getUrl:(a,n)=>`phonepe://pay?am=${a}&tn=${encodeURIComponent(n)}&cu=INR`,web:'https://www.phonepe.com/',desc:'Pay via PhonePe'},
+  {id:'upi',name:'Any UPI',icon:'🇮🇳',color:'#FF6600',getUrl:(a,n)=>`upi://pay?am=${a}&tn=${encodeURIComponent(n)}&cu=INR`,web:'https://www.npci.org.in/',desc:'Open any UPI app'},
+  {id:'cashapp',name:'Cash App',icon:'💚',color:'#00D64F',getUrl:(a,n)=>`cashapp://cash.app/pay?amount=${a}&note=${encodeURIComponent(n)}`,web:'https://cash.app/',desc:'Pay via Cash App'},
+  {id:'cash',name:'Cash',icon:'💵',color:'#4caf50',getUrl:()=>null,web:null,desc:'Cash payment'},
+  {id:'bank',name:'Bank',icon:'🏦',color:'#607d8b',getUrl:()=>null,web:null,desc:'Bank transfer'},
+];
+const RECUR=[{id:'none',label:'One-time'},{id:'weekly',label:'Weekly'},{id:'monthly',label:'Monthly'},{id:'yearly',label:'Yearly'}];
+const AVGRAD=[['#7b6ff0','#9c4fd6'],['#f06292','#e91e8c'],['#4db6ac','#00796b'],['#ffb74d','#e65100'],['#42a5f5','#1565c0'],['#ff7043','#bf360c'],['#ab47bc','#6a1b9a'],['#ef5350','#b71c1c']];
+const AI_KW={dinner:'food',lunch:'food',breakfast:'food',uber:'transport',lyft:'transport',taxi:'transport',bus:'transport',train:'transport',gas:'transport',petrol:'transport',flight:'transport',rent:'housing',hotel:'housing',airbnb:'housing',movie:'entertainment',netflix:'entertainment',concert:'entertainment',game:'entertainment',electric:'utilities',internet:'utilities',water:'utilities',amazon:'shopping',grocery:'food',groceries:'food',doctor:'health',pharmacy:'health',medicine:'health',gym:'health'};
+const GROUP_TEMPLATES=[
+  {id:'trip',name:'Road Trip',emoji:'🚗',desc:'Travel expenses'},
+  {id:'house',name:'Roommates',emoji:'🏠',desc:'House expenses'},
+  {id:'party',name:'Party/Event',emoji:'🎉',desc:'Event costs'},
+  {id:'office',name:'Office',emoji:'💼',desc:'Work expenses'},
+  {id:'custom',name:'Custom',emoji:'✨',desc:'Any group'},
+];
+
+/* ── HELPERS ────────────────────────────────────────── */
+const grad=(i)=>AVGRAD[i%AVGRAD.length];
+const idx=(arr,id)=>{const i=arr.findIndex(x=>String(x.id)===String(id));return i<0?0:i;};
+const fdate=(iso)=>new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+const ftime=(iso)=>new Date(iso).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+const mkey=(iso)=>{const d=new Date(iso);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;};
+const fmkey=(k)=>{const[y,m]=k.split('-');return new Date(y,m-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});};
+const aiCat=(desc)=>{const l=(desc||'').toLowerCase();for(const[kw,cat]of Object.entries(AI_KW)){if(l.includes(kw))return cat;}return null;};
+const getSym=(code)=>CURRENCIES.find(c=>c.code===code)?.sym||'$';
+const getRate=(code)=>CURRENCIES.find(c=>c.code===code)?.rate||1;
+
+/* ── CONFETTI ───────────────────────────────────────── */
+function launchConfetti(){
+  const colors=['#7b6ff0','#f06292','#4db6ac','#ffb74d','#42a5f5','#ff7043'];
+  for(let i=0;i<50;i++){
+    const el=document.createElement('div');
+    el.className='confetti-piece';
+    el.style.left=Math.random()*100+'vw';
+    el.style.background=colors[Math.floor(Math.random()*colors.length)];
+    el.style.animationDuration=(1.5+Math.random()*2)+'s';
+    el.style.animationDelay=(Math.random()*0.5)+'s';
+    el.style.transform=`rotate(${Math.random()*360}deg)`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),4000);
+  }
+}
+
+/* ── SWIPEABLE EXPENSE ITEM ─────────────────────────── */
+function SwipeExpense({exp,onDelete,onSettle,children}){
+  const [offset,setOffset]=useState(0);
+  const startX=useRef(null);
+  const onStart=(e)=>{startX.current=e.touches?e.touches[0].clientX:e.clientX;};
+  const onMove=(e)=>{
+    if(startX.current===null)return;
+    const dx=(e.touches?e.touches[0].clientX:e.clientX)-startX.current;
+    setOffset(Math.max(-80,Math.min(80,dx)));
+  };
+  const onEnd=()=>{
+    if(offset<-60){onDelete();}
+    else if(offset>60){onSettle();}
+    setOffset(0);startX.current=null;
+  };
+  return(
+    <div className="swipe-wrap">
+      <div className="swipe-bg-left">✅</div>
+      <div className="swipe-bg-right">🗑️</div>
+      <div className="swipe-item" style={{transform:`translateX(${offset}px)`}}
+        onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd}
+        onMouseDown={onStart} onMouseMove={onMove} onMouseUp={onEnd}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ── APP ────────────────────────────────────────────── */
+function App(){
+  const [tab,setTab]=useState('groups');
+  const [groups,setGroups]=useState([]);
+  const [activeGroupId,setActiveGroupId]=useState(null);
+  const [people,setPeople]=useState([]);
+  const [expenses,setExpenses]=useState([]);
+  const [ious,setIous]=useState([]);
+  const [budgets,setBudgets]=useState({});
+  const [activity,setActivity]=useState([]);
+  const [baseCur,setBaseCur]=useState('USD');
+  const [theme,setTheme]=useState('dark');
+  const [pinOn,setPinOn]=useState(false);
+  const [pin,setPin]=useState('');
+  const [locked,setLocked]=useState(false);
+  const [onboarded,setOnboarded]=useState(false);
+  const [showQR,setShowQR]=useState(false);
+  const [syncSt,setSyncSt]=useState('live');
+  const [toast,setToast]=useState('');
+  const [toastOn,setToastOn]=useState(false);
+  const [addModal,setAddModal]=useState(false);
+  const [payModal,setPayModal]=useState(null);
+  const [settledIdxs,setSettledIdxs]=useState([]);
+
+  /* load */
+  useEffect(()=>{
+    try{
+      const d=JSON.parse(localStorage.getItem('se_v4')||'{}');
+      if(d.groups)setGroups(d.groups);
+      if(d.activeGroupId)setActiveGroupId(d.activeGroupId);
+      if(d.people)setPeople(d.people);
+      if(d.expenses)setExpenses(d.expenses);
+      if(d.ious)setIous(d.ious);
+      if(d.budgets)setBudgets(d.budgets);
+      if(d.activity)setActivity(d.activity);
+      if(d.baseCur)setBaseCur(d.baseCur);
+      if(d.theme)setTheme(d.theme);
+      if(d.pinOn)setPinOn(d.pinOn);
+      if(d.pin)setPin(d.pin);
+      if(d.onboarded)setOnboarded(d.onboarded);
+    }catch(_){}
+  },[]);
+
+  /* save */
+  useEffect(()=>{
+    setSyncSt('sync');
+    const t=setTimeout(()=>setSyncSt('live'),700);
+    localStorage.setItem('se_v4',JSON.stringify({groups,activeGroupId,people,expenses,ious,budgets,activity,baseCur,theme,pinOn,pin,onboarded}));
+    return()=>clearTimeout(t);
+  },[groups,activeGroupId,people,expenses,ious,budgets,baseCur,theme,pinOn,pin,onboarded]);
+
+  /* theme */
+  useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);},[theme]);
+
+  const showToast=useCallback((msg)=>{
+    setToast(msg);setToastOn(true);
+    setTimeout(()=>setToastOn(false),2800);
+  },[]);
+
+  const addAct=useCallback((emoji,text)=>{
+    setActivity(p=>[{id:String(Date.now()),emoji,text,time:new Date().toISOString()},...p].slice(0,60));
+  },[]);
+
+  /* currency helpers */
+  const sym=useMemo(()=>getSym(baseCur),[baseCur]);
+  const conv=useCallback((amount,from='USD')=>{
+    return(amount/getRate(from))*getRate(baseCur);
+  },[baseCur]);
+
+  /* active group filter */
+  const filtPeople=useMemo(()=>activeGroupId?people.filter(p=>p.groupId===activeGroupId):people,[people,activeGroupId]);
+  const filtExp=useMemo(()=>activeGroupId?expenses.filter(e=>e.groupId===activeGroupId):expenses,[expenses,activeGroupId]);
+  const filtIous=useMemo(()=>activeGroupId?ious.filter(i=>i.groupId===activeGroupId):ious,[ious,activeGroupId]);
+
+  const getName=useCallback(id=>people.find(p=>String(p.id)===String(id))?.name||'?',[people]);
+
+  /* balances */
+  const balances=useMemo(()=>{
+    const b={};
+    filtPeople.forEach(p=>{b[String(p.id)]=0;});
+    filtExp.forEach(exp=>{
+      if(!exp.splitWith||exp.splitWith.length===0)return;
+      const amt=conv(exp.amount,exp.currency||'USD');
+      const per=amt/exp.splitWith.length;
+      b[String(exp.paidBy)]=(b[String(exp.paidBy)]||0)+amt;
+      exp.splitWith.forEach(id=>{b[String(id)]=(b[String(id)]||0)-per;});
+    });
+    return b;
+  },[filtPeople,filtExp,conv]);
+
+  /* settlements */
+  const settlements=useMemo(()=>{
+    const res=[];
+    const d=[],c=[];
+    Object.entries(balances).forEach(([id,bal])=>{
+      if(bal<-0.01)d.push({id,amount:-bal});
+      else if(bal>0.01)c.push({id,amount:bal});
+    });
+    d.sort((a,b)=>b.amount-a.amount);
+    c.sort((a,b)=>b.amount-a.amount);
+    let i=0,j=0;
+    while(i<d.length&&j<c.length){
+      const amt=Math.min(d[i].amount,c[j].amount);
+      if(amt>0.01)res.push({from:d[i].id,to:c[j].id,amount:amt});
+      d[i].amount-=amt;c[j].amount-=amt;
+      if(d[i].amount<0.01)i++;
+      if(c[j].amount<0.01)j++;
+    }
+    return res;
+  },[balances]);
+
+  const totalSpent=useMemo(()=>filtExp.reduce((s,e)=>s+conv(e.amount,e.currency||'USD'),0),[filtExp,conv]);
+  const catTotals=useMemo(()=>{
+    const t={};CATS.forEach(c=>{t[c.id]=0;});
+    filtExp.forEach(e=>{const c=e.category||'other';t[c]=(t[c]||0)+conv(e.amount,e.currency||'USD');});
+    return t;
+  },[filtExp,conv]);
+  const monthlyTotals=useMemo(()=>{
+    const m={};
+    filtExp.forEach(e=>{const k=mkey(e.date);m[k]=(m[k]||0)+conv(e.amount,e.currency||'USD');});
+    return m;
+  },[filtExp,conv]);
+  const budgetAlerts=useMemo(()=>CATS.filter(c=>{const l=budgets[c.id];return l&&catTotals[c.id]>=l*0.8;}),[budgets,catTotals]);
+
+  /* QR */
+  const doQR=()=>{
+    setShowQR(true);
+    setTimeout(()=>{
+      const el=document.getElementById('qrcode');
+      if(!el)return;el.innerHTML='';
+      const data=JSON.stringify({people:filtPeople,expenses:filtExp.map(e=>({...e,receipt:undefined})),baseCur});
+      try{new QRCode(el,{text:data.slice(0,1500),width:176,height:176,colorDark:'#7b6ff0',colorLight:'#13131f',correctLevel:QRCode.CorrectLevel.L});}catch(_){}
+    },150);
+  };
+
+  /* PDF */
+  const doPDF=()=>{
+    try{
+      const{jsPDF}=window.jspdf;const doc=new jsPDF();
+      doc.setFillColor(12,12,20);doc.rect(0,0,210,297,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(22);doc.setTextColor(123,111,240);
+      const gname=groups.find(g=>String(g.id)===String(activeGroupId))?.name||'All Groups';
+      doc.text(`SplitEase Pro — ${gname}`,20,22);
+      doc.setFontSize(9);doc.setTextColor(144,144,184);doc.text(`${new Date().toLocaleDateString()} • ${baseCur}`,20,30);
+      let y=42;
+      const row=(l,v,tc=[238,238,255])=>{if(y>274){doc.addPage();doc.setFillColor(12,12,20);doc.rect(0,0,210,297,'F');y=20;}doc.setTextColor(...tc);doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text(String(l),20,y);doc.text(String(v),185,y,{align:'right'});y+=8;};
+      const head=(t,tc=[123,111,240])=>{y+=4;doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...tc);doc.text(t,20,y);y+=9;};
+      head('Summary');
+      row('Total Spent',`${sym}${totalSpent.toFixed(2)}`);row('Expenses',filtExp.length);row('People',filtPeople.length);row('Pending Settlements',settlements.filter((_,i)=>!settledIdxs.includes(i)).length);
+      head('Expenses',[123,111,240]);
+      filtExp.forEach((e,i)=>{
+        const a=conv(e.amount,e.currency||'USD');
+        if(i%2===0)doc.setFillColor(18,18,28);else doc.setFillColor(22,22,38);
+        doc.rect(15,y-5,180,11,'F');
+        row(e.description.slice(0,42),`${sym}${a.toFixed(2)}`,[238,238,255]);
+        y-=2;doc.setTextColor(144,144,184);doc.setFontSize(8);
+        doc.text(`${getName(e.paidBy)} · ${fdate(e.date)} · ${e.category}`,22,y);y+=7;
+      });
+      const active=settlements.filter((_,i)=>!settledIdxs.includes(i));
+      if(active.length){head('Settlements',[76,175,130]);active.forEach(s=>row(`${getName(s.from)} → ${getName(s.to)}`,`${sym}${s.amount.toFixed(2)}`,[238,238,255]));}
+      head('By Category',[240,98,146]);
+      CATS.forEach(c=>{if(catTotals[c.id]>0)row(`${c.emoji} ${c.label}`,`${sym}${catTotals[c.id].toFixed(2)}`,[238,238,255]);});
+      doc.save(`SplitEase-${gname.replace(/\s/g,'-')}.pdf`);
+      showToast('📄 PDF exported!');addAct('📄','Exported PDF report');
+    }catch(e){showToast('❌ PDF export failed');}
+  };
+
+  /* notifications */
+  const doNotif=async()=>{
+    if(!('Notification'in window))return showToast('❌ Not supported');
+    if(Notification.permission==='granted'){
+      new Notification('SplitEase Pro',{body:`${settlements.length} pending. Total: ${sym}${totalSpent.toFixed(2)}`});
+      showToast('🔔 Notification sent!');
+    }else{
+      const p=await Notification.requestPermission();
+      if(p==='granted'){new Notification('SplitEase Pro',{body:'Notifications enabled! 🎉'});showToast('🔔 Enabled!');}
+      else showToast('🔕 Blocked in browser settings');
+    }
+  };
+
+  /* payment */
+  const doPay=(pm,amount,fromName,toName)=>{
+    const note=`SplitEase: ${fromName} → ${toName} ${sym}${amount.toFixed(2)}`;
+    if(pm.id==='cash'||pm.id==='bank'){showToast(`💵 ${pm.name} payment noted!`);return;}
+    const url=pm.getUrl(amount.toFixed(2),note);
+    if(url){
+      const a=document.createElement('a');a.href=url;a.style.display='none';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      setTimeout(()=>{if(pm.web&&window.confirm(`Couldn't open ${pm.name} app. Open website?`))window.open(pm.web,'_blank');},1500);
+    }else if(pm.web)window.open(pm.web,'_blank');
+    showToast(`💳 Opening ${pm.name}...`);
+  };
+
+  /* add expense */
+  const onAddExp=(exp)=>{
+    setExpenses(p=>[exp,...p]);
+    addAct('💳',`Added: ${exp.description} ${sym}${conv(exp.amount,exp.currency||'USD').toFixed(2)}`);
+    showToast('✅ Expense added!');
+    if(Notification.permission==='granted')new Notification('SplitEase Pro',{body:`New: ${exp.description}`});
+    setAddModal(false);
+  };
+
+  /* mark settled */
+  const markSettled=(s,i)=>{
+    setSettledIdxs(p=>[...p,i]);
+    showToast(`✅ ${getName(s.from)} settled!`);
+    addAct('✅',`${getName(s.from)} settled ${sym}${s.amount.toFixed(2)} with ${getName(s.to)}`);
+    const pending=settlements.filter((_,ii)=>![...settledIdxs,i].includes(ii));
+    if(pending.length===0){launchConfetti();showToast('🎉 All settled up!');}
+    setPayModal(null);
+  };
+
+  /* screens */
+  if(!onboarded)return<Onboarding onDone={()=>setOnboarded(true)}/>;
+  if(locked&&pinOn)return<LockScreen correct={pin} onUnlock={()=>setLocked(false)}/>;
+
+  const TABS=[
+    {id:'groups',icon:'🏘️',label:'Groups'},
+    {id:'expenses',icon:'💳',label:'Expenses'},
+    {id:'balances',icon:'⚖️',label:'Balances'},
+    {id:'reports',icon:'📊',label:'Reports'},
+    {id:'more',icon:'☰',label:'More'},
+  ];
+
+  return(
+    <div className="app">
+      <div className="glow1"/><div className="glow2"/>
+
+      {/* Header */}
+      <div className="hdr" style={{paddingBottom:11}}>
+        <div>
+          <div className="hdr-logo">SplitEase Pro</div>
+          <div className="hdr-sub">
+            <span className={`sdot ${syncSt==='live'?'live':'sync'}`}/>
+            {syncSt==='live'?'Saved':'Syncing...'}
+            {activeGroupId&&<span style={{marginLeft:6,color:'var(--ac)',fontWeight:600}}>· {groups.find(g=>String(g.id)===String(activeGroupId))?.name||''}</span>}
+          </div>
+        </div>
+        <div className="hdr-right">
+          {budgetAlerts.length>0&&(
+            <div className="ibtn" style={{position:'relative'}} onClick={()=>showToast(`⚠️ Budget: ${budgetAlerts.map(c=>c.label).join(', ')} near limit`)}>
+              🔔<div className="nbadge">{budgetAlerts.length}</div>
+            </div>
+          )}
+          <div className="ibtn" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')}>{theme==='dark'?'☀️':'🌙'}</div>
+          {pinOn&&<div className="ibtn" onClick={()=>setLocked(true)}>🔒</div>}
+        </div>
+      </div>
+
+      {/* Summary bar */}
+      <div className="sumbar">
+        <div className="spill"><span>💰</span><div><div className="spill-v">{sym}{totalSpent.toFixed(2)}</div><div className="spill-l">Total</div></div></div>
+        <div className="spill"><span>⚖️</span><div><div className="spill-v">{settlements.filter((_,i)=>!settledIdxs.includes(i)).length}</div><div className="spill-l">To Settle</div></div></div>
+        <div className="spill"><span>👥</span><div><div className="spill-v">{filtPeople.length}</div><div className="spill-l">People</div></div></div>
+        <div className="spill"><span>🏘️</span><div><div className="spill-v">{groups.length}</div><div className="spill-l">Groups</div></div></div>
+      </div>
+
+      {/* Top nav */}
+      <div className="topnav">
+        {TABS.map(t=><button key={t.id} className={`tnb ${tab===t.id?'on':''}`} onClick={()=>setTab(t.id)}>{t.icon} {t.label}</button>)}
+      </div>
+
+      {/* Content */}
+      <div className="content">
+        {tab==='groups'&&<GroupsTab groups={groups} setGroups={setGroups} activeGroupId={activeGroupId} setActiveGroupId={setActiveGroupId} people={people} setPeople={setPeople} expenses={expenses} sym={sym} conv={conv} showToast={showToast} addAct={addAct} setTab={setTab}/>}
+        {tab==='expenses'&&<ExpensesTab people={filtPeople} expenses={filtExp} setExpenses={setExpenses} sym={sym} conv={conv} getName={getName} baseCur={baseCur} activeGroupId={activeGroupId} showToast={showToast} addAct={addAct} setSettledIdxs={setSettledIdxs}/>}
+        {tab==='balances'&&<BalancesTab people={filtPeople} expenses={filtExp} balances={balances} settlements={settlements} settledIdxs={settledIdxs} setSettledIdxs={setSettledIdxs} sym={sym} getName={getName} showToast={showToast} addAct={addAct} ious={filtIous} setIous={setIous} activeGroupId={activeGroupId} payModal={payModal} setPayModal={setPayModal} markSettled={markSettled} doPay={doPay}/>}
+        {tab==='reports'&&<ReportsTab expenses={filtExp} catTotals={catTotals} monthlyTotals={monthlyTotals} sym={sym} totalSpent={totalSpent} people={filtPeople} doPDF={doPDF} doNotif={doNotif} budgets={budgets} setBudgets={setBudgets} conv={conv} showToast={showToast} doQR={doQR} groups={groups} activeGroupId={activeGroupId}/>}
+        {tab==='more'&&<MoreTab theme={theme} setTheme={setTheme} baseCur={baseCur} setBaseCur={setBaseCur} pinOn={pinOn} setPinOn={setPinOn} pin={pin} setPin={setPin} activity={activity} syncSt={syncSt} people={people} expenses={expenses} setPeople={setPeople} setExpenses={setExpenses} setIous={setIous} setActivity={setActivity} doPDF={doPDF} doQR={doQR} doNotif={doNotif} showToast={showToast} addAct={addAct} setGroups={setGroups} setActiveGroupId={setActiveGroupId}/>}
+      </div>
+
+      {/* Bottom nav */}
+      <div className="bnav">
+        {[
+          {id:'groups',icon:'🏘️',label:'Groups'},
+          {id:'expenses',icon:'💳',label:'Expenses'},
+          {id:'add',icon:'＋',label:'Add',fab:true},
+          {id:'balances',icon:'⚖️',label:'Balances'},
+          {id:'more',icon:'☰',label:'More'},
+        ].map(t=>(
+          <button key={t.id} className={`nbt ${tab===t.id?'on':''} ${t.fab?'fab':''}`}
+            onClick={()=>t.fab?setAddModal(true):setTab(t.id)}>
+            <span className="nbt-ic">{t.icon}</span>
+            <span className="nbt-lb">{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Add Expense Modal */}
+      {addModal&&<AddExpModal people={filtPeople} baseCur={baseCur} sym={sym} activeGroupId={activeGroupId} onAdd={onAddExp} onClose={()=>setAddModal(false)} showToast={showToast}/>}
+
+      {/* QR Modal */}
+      {showQR&&(
+        <div className="moverlay center" onClick={()=>setShowQR(false)}>
+          <div className="mbox ctr" onClick={e=>e.stopPropagation()}>
+            <div className="mtitle">📱 Share Group</div>
+            <div className="msub">Scan to import data on another device.</div>
+            <div id="qrcode"/>
+            <button className="btn btn-ol btn-sm" onClick={()=>setShowQR(false)}>Close</button>
+          </div>
+        </div>
+      )}
+
+      <div className={`toast ${toastOn?'on':''}`}>{toast}</div>
+    </div>
+  );
+}
+
+/* ── ONBOARDING ─────────────────────────────────────── */
+function Onboarding({onDone}){
+  const[step,setStep]=useState(0);
+  const slides=[
+    {icon:'💰',title:'Split bills smarter',desc:'Track every shared expense across multiple groups. See exactly who owes what in real time.'},
+    {icon:'🤖',title:'AI-powered features',desc:'Natural language input, OCR receipt scanning, smart category suggestions, and voice entry.'},
+    {icon:'📊',title:'Deep analytics',desc:'Year-in-review, heatmaps, budget alerts, monthly reports and beautiful PDF exports.'},
+    {icon:'🔒',title:'Secure & private',desc:'PIN lock, multiple groups, multiple currencies, swipe gestures — and works fully offline.'},
+  ];
+  return(
+    <div className="ob-wrap">
+      <div className="glow1"/><div className="glow2"/>
+      <div style={{position:'relative',zIndex:1,display:'flex',flexDirection:'column',alignItems:'center',maxWidth:340}}>
+        <div className="ob-icon">{slides[step].icon}</div>
+        <div className="ob-title">{slides[step].title}</div>
+        <div className="ob-desc">{slides[step].desc}</div>
+        <div className="ob-dots">{slides.map((_,i)=><div key={i} className={`ob-dot ${i===step?'on':''}`}/>)}</div>
+        {step<slides.length-1
+          ?<button className="btn" style={{width:200}} onClick={()=>setStep(s=>s+1)}>Next →</button>
+          :<button className="btn" style={{width:200}} onClick={onDone}>Get Started 🚀</button>
+        }
+        {step>0&&<button className="btn btn-ol btn-sm" style={{marginTop:10,width:200}} onClick={()=>setStep(s=>s-1)}>← Back</button>}
+      </div>
+    </div>
+  );
+}
+
+/* ── LOCK SCREEN ────────────────────────────────────── */
+function LockScreen({correct,onUnlock}){
+  const[inp,setInp]=useState('');
+  const[err,setErr]=useState(false);
+  const keys=['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  const press=k=>{
+    if(k==='⌫'){setInp(p=>p.slice(0,-1));return;}
+    if(!k)return;
+    const n=inp+k;setInp(n);
+    if(n.length===4){
+      if(n===correct)onUnlock();
+      else{setErr(true);setTimeout(()=>{setErr(false);setInp('');},600);}
+    }
+  };
+  return(
+    <div className="lock-wrap">
+      <div className="lock-title">SplitEase</div>
+      <div className="lock-sub">Enter PIN to unlock</div>
+      <div className="pin-dots">{[0,1,2,3].map(i=><div key={i} className={`pdot ${i<inp.length?'on':''}`}/>)}</div>
+      <div className="pin-grid">{keys.map((k,i)=><div key={i} className="pkey" onClick={()=>press(k)}>{k}</div>)}</div>
+      {err&&<div className="pin-err">Wrong PIN. Try again.</div>}
+    </div>
+  );
+}
+
+/* ── GROUPS TAB ─────────────────────────────────────── */
+function GroupsTab({groups,setGroups,activeGroupId,setActiveGroupId,people,setPeople,expenses,sym,conv,showToast,addAct,setTab}){
+  const[showAdd,setShowAdd]=useState(false);
+  const[gname,setGname]=useState('');
+  const[gemoji,setGemoji]=useState('✨');
+  const[gdesc,setGdesc]=useState('');
+
+  const addGroup=()=>{
+    if(!gname.trim()){showToast('⚠️ Enter group name');return;}
+    const g={id:String(Date.now()),name:gname.trim(),emoji:gemoji,desc:gdesc.trim(),created:new Date().toISOString()};
+    setGroups(p=>[...p,g]);
+    setActiveGroupId(g.id);
+    setGname('');setGdesc('');setGemoji('✨');setShowAdd(false);
+    showToast(`✅ Group "${g.name}" created!`);addAct('🏘️',`Created group: ${g.name}`);
+    setTab('expenses');
+  };
+
+  const deleteGroup=(id)=>{
+    if(!window.confirm('Delete group and all its data?'))return;
+    setGroups(p=>p.filter(g=>String(g.id)!==String(id)));
+    if(String(activeGroupId)===String(id))setActiveGroupId(null);
+    showToast('🗑️ Group deleted');
+  };
+
+  const getGroupStats=(gid)=>{
+    const exp=expenses.filter(e=>e.groupId===String(gid));
+    const ppl=people.filter(p=>p.groupId===String(gid));
+    const total=exp.reduce((s,e)=>s+conv(e.amount,e.currency||'USD'),0);
+    return{expenses:exp.length,people:ppl.length,total};
+  };
+
+  return(
+    <div className="fade-in">
+      <div className="stitle">My Groups <span className="sbadge">{groups.length}</span></div>
+
+      {/* All groups option */}
+      <div className={`group-card ${!activeGroupId?'active':''}`} onClick={()=>setActiveGroupId(null)}>
+        <div className="group-icon" style={{background:'linear-gradient(135deg,var(--ac),var(--ac2))'}}>🌐</div>
+        <div className="group-info">
+          <div className="group-name">All Groups</div>
+          <div className="group-meta">{people.length} people · {expenses.length} expenses · {sym}{expenses.reduce((s,e)=>s+conv(e.amount,e.currency||'USD'),0).toFixed(2)}</div>
+        </div>
+        {!activeGroupId&&<span style={{color:'var(--ac)',fontSize:18}}>✓</span>}
+      </div>
+
+      {groups.length===0&&(
+        <div className="empty"><div className="empty-ic">🏘️</div><div className="empty-title">No groups yet</div><div className="empty">Create your first group to start splitting</div></div>
+      )}
+
+      {groups.map((g,gi)=>{
+        const gr=grad(gi);const stats=getGroupStats(g.id);
+        const isActive=String(activeGroupId)===String(g.id);
+        return(
+          <div key={g.id} className={`group-card ${isActive?'active':''}`} onClick={()=>{setActiveGroupId(g.id);setTab('expenses');}}>
+            <div className="group-icon" style={{background:`linear-gradient(135deg,${gr[0]},${gr[1]})`}}>{g.emoji}</div>
+            <div className="group-info">
+              <div className="group-name">{g.name}</div>
+              <div className="group-meta">{stats.people} people · {stats.expenses} expenses · {sym}{stats.total.toFixed(2)}</div>
+              {g.desc&&<div style={{fontSize:11,color:'var(--t3)',marginTop:1}}>{g.desc}</div>}
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:5,alignItems:'flex-end'}}>
+              {isActive&&<span style={{color:'var(--ac)',fontSize:16}}>✓</span>}
+              <button className="btn btn-rd btn-xs" onClick={e=>{e.stopPropagation();deleteGroup(g.id);}}>✕</button>
+            </div>
+          </div>
+        );
+      })}
+
+      <button className="btn" style={{marginTop:8}} onClick={()=>setShowAdd(true)}>+ New Group</button>
+
+      {showAdd&&(
+        <div className="moverlay" onClick={()=>setShowAdd(false)}>
+          <div className="mbox" onClick={e=>e.stopPropagation()}>
+            <div className="mhandle"/>
+            <div className="mtitle">Create Group</div>
+            <div className="msub">Choose a template or start from scratch.</div>
+
+            <div className="field">
+              <label>Template</label>
+              <div className="chips" style={{marginBottom:12}}>
+                {GROUP_TEMPLATES.map(t=>(
+                  <div key={t.id} className={`chip ${gemoji===t.emoji?'on':''}`} onClick={()=>{setGemoji(t.emoji);if(!gname)setGname(t.name);}}>
+                    {t.emoji} {t.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="r2">
+              <div className="field">
+                <label>Emoji</label>
+                <input className="finp" value={gemoji} onChange={e=>setGemoji(e.target.value)} maxLength={2}/>
+              </div>
+              <div className="field">
+                <label>Group Name *</label>
+                <input className="finp" placeholder="e.g. Bali Trip" value={gname} onChange={e=>setGname(e.target.value)} onKeyPress={e=>e.key==='Enter'&&addGroup()}/>
+              </div>
+            </div>
+            <div className="field">
+              <label>Description</label>
+              <input className="finp" placeholder="Optional description" value={gdesc} onChange={e=>setGdesc(e.target.value)}/>
+            </div>
+            <div className="btn-row">
+              <button className="btn" onClick={addGroup}>Create Group</button>
+              <button className="btn btn-ol btn-sm" onClick={()=>setShowAdd(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── ADD EXPENSE MODAL ──────────────────────────────── */
+function AddExpModal({people,baseCur,sym,activeGroupId,onAdd,onClose,showToast}){
+  const[desc,setDesc]=useState('');
+  const[amount,setAmount]=useState('');
+  const[currency,setCurrency]=useState(baseCur);
+  const[category,setCategory]=useState('food');
+  const[paidBy,setPaidBy]=useState('');
+  const[splitWith,setSplitWith]=useState([]);
+  const[splitType,setSplitType]=useState('equal');
+  const[customSplits,setCustomSplits]=useState({});
+  const[itemSplits,setItemSplits]=useState([{name:'',price:'',assignedTo:[]}]);
+  const[receipt,setReceipt]=useState(null);
+  const[ocrActive,setOcrActive]=useState(false);
+  const[recur,setRecur]=useState('none');
+  const[notes,setNotes]=useState('');
+  const[tip,setTip]=useState(0);
+  const[showVoice,setShowVoice]=useState(false);
+  const[voiceText,setVoiceText]=useState('');
+  const[aiSuggest,setAiSuggest]=useState(null);
+  const[nlInput,setNlInput]=useState('');
+
+  useEffect(()=>{const c=aiCat(desc);if(c&&c!==category)setAiSuggest(c);else setAiSuggest(null);},[desc]);
+  useEffect(()=>{setCurrency(baseCur);},[baseCur]);
+
+  const toggleSplit=(id)=>{
+    const sid=String(id);
+    setSplitWith(p=>p.includes(sid)?p.filter(x=>x!==sid):[...p,sid]);
+  };
+
+  const handleReceipt=(e)=>{
+    const f=e.target.files[0];if(!f)return;
+    setOcrActive(true);
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      setReceipt(ev.target.result);
+      // Simulated OCR with random amount
+      setTimeout(()=>{
+        setOcrActive(false);
+        const amt=(10+Math.random()*90).toFixed(2);
+        setAmount(amt);
+        showToast(`📸 OCR detected: ~${getSym(currency)}${amt}`);
+      },2000);
+    };
+    reader.readAsDataURL(f);
+  };
+
+  /* Natural language parser */
+  const parseNL=(text)=>{
+    const amtMatch=text.match(/\$?(\d+(?:\.\d{1,2})?)/);
+    if(amtMatch)setAmount(amtMatch[1]);
+    const forMatch=text.match(/for\s+(.+?)(?:\s+split|\s+with|$)/i);
+    if(forMatch)setDesc(forMatch[1].trim());
+    showToast('🤖 AI parsed your input!');
+    setNlInput('');
+  };
+
+  /* Voice input (Web Speech API) */
+  const startVoice=()=>{
+    if(!('SpeechRecognition'in window||'webkitSpeechRecognition'in window)){
+      showToast('❌ Voice not supported on this browser');return;
+    }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const rec=new SR();
+    rec.lang='en-US';rec.interimResults=false;
+    rec.onresult=(e)=>{
+      const t=e.results[0][0].transcript;
+      setVoiceText(t);
+      parseNL(t);
+      setShowVoice(false);
+    };
+    rec.onerror=()=>{showToast('❌ Voice recognition failed');setShowVoice(false);};
+    rec.start();
+    setShowVoice(true);
+    setTimeout(()=>{try{rec.stop();}catch(_){}setShowVoice(false);},5000);
+  };
+
+  const totalWithTip=parseFloat(amount||0)*(1+tip/100);
+  const perPerson=splitWith.length>0?totalWithTip/splitWith.length:0;
+  const expSym=getSym(currency);
+
+  const submit=()=>{
+    if(!desc.trim()||!amount||!paidBy||splitWith.length===0){
+      showToast('⚠️ Fill all required fields');return;
+    }
+    const exp={
+      id:String(Date.now()),
+      groupId:activeGroupId?String(activeGroupId):null,
+      description:desc.trim(),
+      amount:parseFloat((totalWithTip).toFixed(2)),
+      currency,category,
+      paidBy:String(paidBy),
+      splitWith:splitWith.map(String),
+      splitType,customSplits,itemSplits:splitType==='item'?itemSplits:[],
+      receipt:receipt||null,recur,notes:notes.trim(),
+      tip,date:new Date().toISOString(),
+    };
+    onAdd(exp);
+  };
+
+  return(
+    <div className="moverlay" onClick={onClose}>
+      <div className="mbox" onClick={e=>e.stopPropagation()}>
+        <div className="mhandle"/>
+        <div className="mtitle">Add Expense</div>
+
+        {/* Natural language input */}
+        <div className="infobox" style={{marginBottom:10}}>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:6,color:'var(--ac)'}}>🤖 Natural Language Input</div>
+          <div style={{display:'flex',gap:8}}>
+            <input className="finp" style={{flex:1,fontSize:13,padding:'8px 10px'}} placeholder='e.g. "paid $45 for dinner"' value={nlInput} onChange={e=>setNlInput(e.target.value)} onKeyPress={e=>e.key==='Enter'&&parseNL(nlInput)}/>
+            <button className="btn btn-xs" style={{width:'auto',padding:'8px 12px'}} onClick={()=>parseNL(nlInput)}>Parse</button>
+            <button className="btn btn-xs btn-ol" style={{width:'auto',padding:'8px 10px'}} onClick={startVoice} title="Voice input">🎤</button>
+          </div>
+          {showVoice&&<div style={{fontSize:12,color:'var(--ac)',marginTop:6,textAlign:'center'}}>🎤 Listening... speak now</div>}
+          {voiceText&&<div style={{fontSize:12,color:'var(--t2)',marginTop:4}}>Heard: "{voiceText}"</div>}
+        </div>
+
+        {/* AI suggestion */}
+        {aiSuggest&&aiSuggest!==category&&(
+          <div className="infobox" style={{cursor:'pointer',marginBottom:10}} onClick={()=>{setCategory(aiSuggest);setAiSuggest(null);}}>
+            🤖 AI suggests: <strong>{CATS.find(c=>c.id===aiSuggest)?.label}</strong> — tap to apply
+          </div>
+        )}
+
+        <div className="field">
+          <label>Description *</label>
+          <input className="finp" placeholder="e.g. Dinner at Nobu" value={desc} onChange={e=>setDesc(e.target.value)}/>
+        </div>
+
+        <div className="r2">
+          <div className="field">
+            <label>Amount *</label>
+            <input className="finp" type="number" step="0.01" placeholder="0.00" value={amount} onChange={e=>setAmount(e.target.value)}/>
+          </div>
+          <div className="field">
+            <label>Currency</label>
+            <select className="finp" value={currency} onChange={e=>setCurrency(e.target.value)}>
+              {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.flag} {c.code}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Tip calculator */}
+        <div className="field">
+          <label>Tip Calculator</label>
+          <div className="tip-row">
+            {[0,10,15,18,20,25].map(t=>(
+              <div key={t} className={`tip-opt ${tip===t?'on':''}`} onClick={()=>setTip(t)}>{t}%</div>
+            ))}
+          </div>
+          {tip>0&&amount&&(
+            <div style={{fontSize:12,color:'var(--t2)',marginBottom:6}}>
+              Tip: {expSym}{(parseFloat(amount||0)*tip/100).toFixed(2)} · Total: {expSym}{totalWithTip.toFixed(2)}
+            </div>
+          )}
+        </div>
+
+        <div className="field">
+          <label>Category</label>
+          <div className="chips">{CATS.map(c=><div key={c.id} className={`chip ${category===c.id?'on':''}`} onClick={()=>setCategory(c.id)}>{c.emoji} {c.label}</div>)}</div>
+        </div>
+
+        <div className="field">
+          <label>Paid By *</label>
+          <select className="finp" value={paidBy} onChange={e=>setPaidBy(e.target.value)}>
+            <option value="">Select person</option>
+            {people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+
+        {/* Split type */}
+        <div className="field">
+          <label>Split Type</label>
+          <div style={{display:'flex',gap:7,marginBottom:10}}>
+            {[{id:'equal',l:'⚖️ Equal'},{id:'percent',l:'% Percent'},{id:'custom',l:'✏️ Custom'},{id:'item',l:'🍽️ By Item'}].map(t=>(
+              <div key={t.id} className={`chip ${splitType===t.id?'on':''}`} onClick={()=>setSplitType(t.id)}>{t.l}</div>
+            ))}
+          </div>
+        </div>
+
+        {/* Split between */}
+        {people.length>0&&splitType!=='item'&&(
+          <div className="field">
+            <label>Split Between * {splitWith.length>0&&`— ${expSym}${perPerson.toFixed(2)}/person`}</label>
+            <div className="sgrid">
+              {people.map(p=>{
+                const sid=String(p.id);const sel=splitWith.includes(sid);
+                return(
+                  <div key={p.id} className={`sitem ${sel?'on':''}`} onClick={()=>toggleSplit(p.id)}>
+                    <div className="schk">{sel?'✓':''}</div>
+                    <span style={{fontSize:13,fontWeight:500}}>{p.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Custom amounts */}
+            {splitType==='custom'&&splitWith.length>0&&(
+              <div style={{marginTop:10}}>
+                {splitWith.map(sid=>{
+                  const name=people.find(p=>String(p.id)===sid)?.name||'?';
+                  return(
+                    <div key={sid} className="r2" style={{marginBottom:6}}>
+                      <div style={{display:'flex',alignItems:'center',fontSize:13,color:'var(--t2)'}}>{name}</div>
+                      <input className="finp" type="number" step="0.01" placeholder="0.00" value={customSplits[sid]||''} onChange={e=>setCustomSplits(p=>({...p,[sid]:e.target.value}))}/>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Item by item split */}
+        {splitType==='item'&&(
+          <div className="field">
+            <label>Item-by-Item Split</label>
+            {itemSplits.map((item,ii)=>(
+              <div key={ii} className="item-split-row">
+                <input className="finp" style={{flex:2,fontSize:13,padding:'7px 9px'}} placeholder="Item name" value={item.name} onChange={e=>{const n=[...itemSplits];n[ii]={...n[ii],name:e.target.value};setItemSplits(n);}}/>
+                <input className="finp" style={{width:72,fontSize:13,padding:'7px 9px'}} type="number" placeholder="Price" value={item.price} onChange={e=>{const n=[...itemSplits];n[ii]={...n[ii],price:e.target.value};setItemSplits(n);}}/>
+                <div className="item-who">
+                  {people.map(p=>(
+                    <div key={p.id} className={`item-tag ${item.assignedTo.includes(String(p.id))?'picked':''}`}
+                      onClick={()=>{
+                        const n=[...itemSplits];
+                        const at=n[ii].assignedTo;
+                        n[ii]={...n[ii],assignedTo:at.includes(String(p.id))?at.filter(x=>x!==String(p.id)):[...at,String(p.id)]};
+                        setItemSplits(n);
+                      }}>
+                      {p.name.split(' ')[0]}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <button className="btn btn-ol btn-xs" style={{marginTop:8}} onClick={()=>setItemSplits(p=>[...p,{name:'',price:'',assignedTo:[]}])}>+ Add Item</button>
+            <div style={{fontSize:12,color:'var(--t2)',marginTop:8}}>Also select paid-by above. Item split is for reference.</div>
+          </div>
+        )}
+
+        {/* Recurring */}
+        <div className="field">
+          <label>Recurring</label>
+          <div className="chips">{RECUR.map(r=><div key={r.id} className={`chip ${recur===r.id?'on':''}`} onClick={()=>setRecur(r.id)}>{r.label}</div>)}</div>
+        </div>
+
+        {/* Receipt */}
+        <div className="field">
+          <label>📷 Receipt (OCR auto-detects amount)</label>
+          <label className="rzone">
+            <input type="file" accept="image/*" capture="environment" onChange={handleReceipt}/>
+            {ocrActive?(
+              <div style={{padding:10}}>
+                <div style={{fontSize:24,marginBottom:6}}>🔍</div>
+                <div style={{fontSize:13,color:'var(--t2)'}}>Scanning receipt...</div>
+                <div style={{width:'100%',height:3,background:'var(--bd)',borderRadius:2,marginTop:10,overflow:'hidden'}}>
+                  <div style={{width:'50%',height:'100%',background:'var(--ac)',animation:'scan 1s ease-in-out infinite'}}/>
+                </div>
+              </div>
+            ):receipt?(
+              <img src={receipt} alt="receipt" style={{maxWidth:'100%',borderRadius:8,maxHeight:130,objectFit:'cover',marginTop:6}}/>
+            ):(
+              <div><div style={{fontSize:26,marginBottom:5}}>📸</div><div style={{fontSize:13,color:'var(--t2)'}}>Tap to upload receipt</div><div style={{fontSize:11,color:'var(--t3)',marginTop:3}}>OCR will auto-read amount</div></div>
+            )}
+          </label>
+        </div>
+
+        <div className="field">
+          <label>Notes</label>
+          <textarea className="finp" placeholder="Optional notes..." value={notes} onChange={e=>setNotes(e.target.value)}/>
+        </div>
+
+        <div className="btn-row">
+          <button className="btn" onClick={submit}>✅ Add Expense</button>
+          <button className="btn btn-ol btn-sm" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── EXPENSES TAB ───────────────────────────────────── */
+function ExpensesTab({people,expenses,setExpenses,sym,conv,getName,baseCur,activeGroupId,showToast,addAct,setSettledIdxs}){
+  const[filter,setFilter]=useState('all');
+  const[search,setSearch]=useState('');
+  const[expandedId,setExpandedId]=useState(null);
+
+  const filtered=useMemo(()=>{
+    return expenses.filter(e=>{
+      if(filter!=='all'&&e.category!==filter)return false;
+      if(search&&!e.description.toLowerCase().includes(search.toLowerCase()))return false;
+      return true;
+    });
+  },[expenses,filter,search]);
+
+  const deleteExp=(id)=>{
+    const exp=expenses.find(e=>e.id===id);
+    if(!exp)return;
+    setExpenses(p=>p.filter(e=>e.id!==id));
+    setSettledIdxs([]);
+    addAct('🗑️',`Deleted: ${exp.description}`);
+    showToast('🗑️ Expense deleted (undo not available)');
+  };
+
+  return(
+    <div className="fade-in">
+      {!activeGroupId&&<div className="infobox warnbox">⚠️ Showing all groups. Select a group for focused view.</div>}
+      <div className="stitle">Expenses <span className="sbadge">{filtered.length}</span></div>
+
+      <input className="finp" placeholder="🔍 Search expenses..." value={search} onChange={e=>setSearch(e.target.value)} style={{marginBottom:11}}/>
+
+      <div style={{display:'flex',gap:6,marginBottom:13,overflowX:'auto',paddingBottom:3,scrollbarWidth:'none'}}>
+        <div className={`chip ${filter==='all'?'on':''}`} onClick={()=>setFilter('all')}>All</div>
+        {CATS.map(c=><div key={c.id} className={`chip ${filter===c.id?'on':''}`} onClick={()=>setFilter(c.id)}>{c.emoji}</div>)}
+      </div>
+
+      {filtered.length===0&&<div className="empty"><div className="empty-ic">💳</div><div className="empty-title">No expenses</div><div style={{fontSize:13}}>{search?'Try different search':'Tap + to add expense'}</div></div>}
+
+      {filtered.map(exp=>{
+        const cat=CATS.find(c=>c.id===exp.category)||CATS[7];
+        const expSym=getSym(exp.currency||'USD');
+        const expanded=expandedId===exp.id;
+        const amtBase=conv(exp.amount,exp.currency||'USD');
+        return(
+          <SwipeExpense key={exp.id}
+            onDelete={()=>deleteExp(exp.id)}
+            onSettle={()=>showToast('✅ Swipe works! Use Balances tab to settle.')}>
+            <div className="expitem" onClick={()=>setExpandedId(expanded?null:exp.id)}>
+              <div className="expitem-bar" style={{background:cat.color}}/>
+              <div className="exp-top">
+                <div style={{flex:1}}>
+                  <div className="exp-name">{exp.description}</div>
+                  <div className="exp-meta">
+                    <span className="etag" style={{background:`${cat.color}22`,color:cat.color}}>{cat.emoji} {cat.label}</span>
+                    <span style={{fontSize:11,color:'var(--t3)'}}>{fdate(exp.date)}</span>
+                    {exp.recur&&exp.recur!=='none'&&<span className="recbadge">🔄 {exp.recur}</span>}
+                  </div>
+                  <div style={{fontSize:12,color:'var(--t2)',marginTop:4}}>
+                    Paid by <strong style={{color:'var(--t1)'}}>{getName(exp.paidBy)}</strong> · {exp.splitWith.length} people
+                  </div>
+                </div>
+                <div>
+                  <div className="exp-amt" style={{color:cat.color}}>{expSym}{exp.amount.toFixed(2)}</div>
+                  {exp.currency!==baseCur&&<div style={{fontSize:10,color:'var(--t3)'}}>{sym}{amtBase.toFixed(2)}</div>}
+                  <div className="exp-per">{expSym}{(exp.amount/Math.max(exp.splitWith.length,1)).toFixed(2)}/p</div>
+                </div>
+              </div>
+              {expanded&&(
+                <div className="exp-detail">
+                  <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:7}}>
+                    {exp.splitWith.map(id=>{
+                      const g=grad(idx(people,id));
+                      return<span key={id} style={{background:`${g[0]}22`,color:g[0],padding:'2px 7px',borderRadius:8,fontSize:11,fontWeight:700}}>{getName(id)}</span>;
+                    })}
+                  </div>
+                  {exp.notes&&<div style={{marginBottom:6}}>📝 {exp.notes}</div>}
+                  {exp.tip>0&&<div style={{marginBottom:6}}>🍽️ Tip: {exp.tip}%</div>}
+                  {exp.receipt&&<img src={exp.receipt} alt="receipt" style={{width:'100%',borderRadius:8,marginBottom:8,maxHeight:120,objectFit:'cover'}}/>}
+                  {exp.itemSplits&&exp.itemSplits.length>0&&(
+                    <div style={{marginBottom:6}}>
+                      <div style={{fontSize:11,fontWeight:700,color:'var(--ac)',marginBottom:4}}>ITEMS</div>
+                      {exp.itemSplits.filter(it=>it.name).map((it,i)=>(
+                        <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:2}}>
+                          <span>{it.name}</span><span>{sym}{parseFloat(it.price||0).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button className="btn btn-rd btn-xs" onClick={e=>{e.stopPropagation();deleteExp(exp.id);}}>🗑️ Delete</button>
+                  <div style={{fontSize:10,color:'var(--t3)',marginTop:5}}>💡 Swipe left to delete, right to mark settled</div>
+                </div>
+              )}
+            </div>
+          </SwipeExpense>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── BALANCES TAB ───────────────────────────────────── */
+function BalancesTab({people,expenses,balances,settlements,settledIdxs,setSettledIdxs,sym,getName,showToast,addAct,ious,setIous,activeGroupId,payModal,setPayModal,markSettled,doPay}){
+  const[showIOU,setShowIOU]=useState(false);
+  const[iouForm,setIouForm]=useState({from:'',to:'',amount:'',desc:'',due:''});
+  const activeSettles=settlements.filter((_,i)=>!settledIdxs.includes(i));
+
+  const addIOU=()=>{
+    if(!iouForm.from||!iouForm.to||!iouForm.amount){showToast('⚠️ Fill all fields');return;}
+    setIous(p=>[...p,{id:String(Date.now()),groupId:activeGroupId?String(activeGroupId):null,...iouForm,amount:parseFloat(iouForm.amount),date:new Date().toISOString(),settled:false}]);
+    setIouForm({from:'',to:'',amount:'',desc:'',due:''});setShowIOU(false);
+    showToast('📝 IOU added!');addAct('📝','Added IOU');
+  };
+
+  return(
+    <div className="fade-in">
+      <div className="stitle">Balances</div>
+      {people.length===0&&<div className="empty"><div className="empty-ic">⚖️</div><div className="empty-title">No people yet</div><div style={{fontSize:13}}>Add people in the People tab (More)</div></div>}
+
+      {people.map((p,i)=>{
+        const bal=balances[String(p.id)]||0;const gr=grad(i);
+        return(
+          <div key={p.id} className="pcard">
+            <div className="av av40" style={{background:`linear-gradient(135deg,${gr[0]},${gr[1]})`}}>{p.name[0].toUpperCase()}</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:15}}>{p.name}</div>
+              <div style={{fontSize:12,color:'var(--t2)',marginTop:2}}>
+                {Math.abs(bal)<0.01?'✅ Settled':bal>0?`Gets back ${sym}${bal.toFixed(2)}`:`Owes ${sym}${Math.abs(bal).toFixed(2)}`}
+              </div>
+            </div>
+            <div className="balamt" style={{color:bal>0.01?'var(--gr)':bal<-0.01?'var(--rd)':'var(--t3)'}}>
+              {bal>0.01?'+':''}{sym}{Math.abs(bal).toFixed(2)}
+            </div>
+          </div>
+        );
+      })}
+
+      {activeSettles.length>0&&<>
+        <div className="divider"/>
+        <div className="stitle">Settle Up <span className="sbadge">{activeSettles.length}</span></div>
+        {settlements.map((s,i)=>{
+          if(settledIdxs.includes(i))return null;
+          const fg=grad(idx(people,s.from));
+          return(
+            <div key={i} className="scard">
+              <div className="av av32" style={{background:`linear-gradient(135deg,${fg[0]},${fg[1]})`}}>{getName(s.from)[0].toUpperCase()}</div>
+              <div style={{flex:1,fontSize:13}}>
+                <strong>{getName(s.from)}</strong><span style={{color:'var(--t2)'}}> pays </span><strong>{getName(s.to)}</strong>
+              </div>
+              <div style={{fontWeight:800,color:'var(--ac)',fontSize:15,marginRight:8}}>{sym}{s.amount.toFixed(2)}</div>
+              <button className="btn btn-gr btn-xs" onClick={()=>setPayModal({...s,idx:i})}>Pay</button>
+            </div>
+          );
+        })}
+
+        {/* Payment apps info */}
+        <div className="infobox" style={{marginTop:4}}>
+          💡 Tap <strong>Pay</strong> to choose a payment app (PayPal, Venmo, UPI, etc.) or mark as cash/bank.
+        </div>
+      </>}
+
+      {activeSettles.length===0&&expenses.length>0&&(
+        <div className="infobox succbox">🎉 Everyone is settled up!</div>
+      )}
+
+      <div className="divider"/>
+      <div className="stitle">IOUs <span className="sbadge">{ious.filter(i=>!i.settled).length}</span></div>
+      <button className="btn btn-ol" style={{marginBottom:11}} onClick={()=>setShowIOU(true)}>+ Add Personal IOU</button>
+      {ious.length===0&&<div style={{fontSize:13,color:'var(--t3)',marginBottom:10}}>Track personal debts outside group expenses.</div>}
+      {ious.map(iou=>(
+        <div key={iou.id} className="card">
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+            <div style={{fontWeight:700,fontSize:14}}>{getName(iou.from)} → {getName(iou.to)}</div>
+            <span style={{fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:10,background:iou.settled?'rgba(76,175,130,.12)':'rgba(255,202,40,.12)',color:iou.settled?'var(--gr)':'var(--yw)'}}>{iou.settled?'Settled':'Pending'}</span>
+          </div>
+          <div style={{fontSize:22,fontWeight:800,color:'var(--ac)',marginBottom:4}}>{sym}{iou.amount.toFixed(2)}</div>
+          <div style={{fontSize:12,color:'var(--t2)'}}>{iou.desc}{iou.due&&` · Due ${iou.due}`}</div>
+          {!iou.settled&&<button className="btn btn-gr btn-xs" style={{marginTop:9}} onClick={()=>{setIous(p=>p.map(x=>x.id===iou.id?{...x,settled:true}:x));showToast('✅ IOU settled!');}}>Mark Settled</button>}
+        </div>
+      ))}
+
+      {/* IOU Modal */}
+      {showIOU&&(
+        <div className="moverlay" onClick={()=>setShowIOU(false)}>
+          <div className="mbox" onClick={e=>e.stopPropagation()}>
+            <div className="mhandle"/>
+            <div className="mtitle">Add IOU</div>
+            <div className="r2">
+              <div className="field"><label>From</label><select className="finp" value={iouForm.from} onChange={e=>setIouForm(p=>({...p,from:e.target.value}))}><option value="">Select</option>{people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+              <div className="field"><label>To</label><select className="finp" value={iouForm.to} onChange={e=>setIouForm(p=>({...p,to:e.target.value}))}><option value="">Select</option>{people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+            </div>
+            <div className="r2">
+              <div className="field"><label>Amount</label><input className="finp" type="number" step="0.01" placeholder="0.00" value={iouForm.amount} onChange={e=>setIouForm(p=>({...p,amount:e.target.value}))}/></div>
+              <div className="field"><label>Due Date</label><input className="finp" type="date" value={iouForm.due} onChange={e=>setIouForm(p=>({...p,due:e.target.value}))}/></div>
+            </div>
+            <div className="field"><label>Description</label><input className="finp" placeholder="What for?" value={iouForm.desc} onChange={e=>setIouForm(p=>({...p,desc:e.target.value}))}/></div>
+            <div className="btn-row">
+              <button className="btn" onClick={addIOU}>Add IOU</button>
+              <button className="btn btn-ol btn-sm" onClick={()=>setShowIOU(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment modal */}
+      {payModal&&(
+        <div className="moverlay" onClick={()=>setPayModal(null)}>
+          <div className="mbox" onClick={e=>e.stopPropagation()}>
+            <div className="mhandle"/>
+            <div className="mtitle">💳 Pay Now</div>
+            <div className="pm-summary">
+              <div style={{fontSize:13,color:'var(--t2)',marginBottom:4}}>
+                <strong style={{color:'var(--t1)'}}>{getName(payModal.from)}</strong> pays <strong style={{color:'var(--t1)'}}>{getName(payModal.to)}</strong>
+              </div>
+              <div className="pm-amt">{sym}{payModal.amount.toFixed(2)}</div>
+            </div>
+            <div style={{fontSize:11,color:'var(--t2)',marginBottom:11,textTransform:'uppercase',letterSpacing:'.5px',fontWeight:700}}>Choose payment method</div>
+            <div className="pm-grid">
+              {PAYMENT_METHODS.map(pm=>(
+                <button key={pm.id} className="pm-btn" onClick={()=>doPay(pm,payModal.amount,getName(payModal.from),getName(payModal.to))}>
+                  <span className="pm-icon">{pm.icon}</span>
+                  <span className="pm-name">{pm.name}</span>
+                  <span className="pm-desc">{pm.desc}</span>
+                </button>
+              ))}
+            </div>
+            <div className="infobox warnbox" style={{marginBottom:13}}>
+              ⚡ Opens the app/website. Return here and tap "Mark Settled" once done.
+            </div>
+            <div className="btn-row">
+              <button className="btn btn-gr" onClick={()=>markSettled(payModal,payModal.idx)}>✅ Mark as Settled</button>
+              <button className="btn btn-ol btn-sm" onClick={()=>setPayModal(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── REPORTS TAB ────────────────────────────────────── */
+function ReportsTab({expenses,catTotals,monthlyTotals,sym,totalSpent,people,doPDF,doNotif,budgets,setBudgets,conv,showToast,doQR,groups,activeGroupId}){
+  const[showBudget,setShowBudget]=useState(false);
+  const[budInp,setBudInp]=useState({});
+  const maxCat=Math.max(...Object.values(catTotals),1);
+  const sortedMonths=Object.entries(monthlyTotals).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);
+  const maxMonth=Math.max(...Object.values(monthlyTotals),1);
+  const catColors={food:'#ffb74d',transport:'#42a5f5',housing:'#ab47bc',entertainment:'#f06292',utilities:'#4db6ac',shopping:'#ff7043',health:'#ef5350',other:'#90a4ae'};
+
+  /* Heatmap */
+  const heatmap=useMemo(()=>{
+    const days={};
+    expenses.forEach(e=>{const d=new Date(e.date).toLocaleDateString();days[d]=(days[d]||0)+1;});
+    return Array.from({length:35},(_,i)=>{
+      const d=new Date();d.setDate(d.getDate()-(34-i));
+      const k=d.toLocaleDateString();
+      return{date:k,count:days[k]||0};
+    });
+  },[expenses]);
+  const maxHeat=Math.max(...heatmap.map(h=>h.count),1);
+
+  /* Year in review */
+  const year=new Date().getFullYear();
+  const yearExp=expenses.filter(e=>new Date(e.date).getFullYear()===year);
+  const yearTotal=yearExp.reduce((s,e)=>s+conv(e.amount,e.currency||'USD'),0);
+  const topCat=Object.entries(catTotals).sort((a,b)=>b[1]-a[1])[0];
+  const topCatObj=CATS.find(c=>c.id===topCat?.[0]);
+  const avgMonth=yearTotal/Math.max(new Date().getMonth()+1,1);
+  const spendPersonality=topCatObj?.id==='food'?'🍕 Foodie':topCatObj?.id==='transport'?'🚗 Traveler':topCatObj?.id==='entertainment'?'🎉 Party Animal':topCatObj?.id==='shopping'?'🛍️ Shopaholic':'💡 Balanced';
+
+  const saveBudgets=()=>{
+    const parsed={};
+    Object.entries(budInp).forEach(([k,v])=>{if(v)parsed[k]=parseFloat(v);});
+    setBudgets(p=>({...p,...parsed}));
+    setShowBudget(false);showToast('💰 Budgets saved!');
+  };
+
+  return(
+    <div className="fade-in">
+      <div className="stitle">Reports & Analytics</div>
+
+      {/* Year in Review */}
+      {yearExp.length>0&&(
+        <>
+          <div style={{fontSize:14,fontWeight:700,color:'var(--t2)',marginBottom:10,textTransform:'uppercase',letterSpacing:'.5px'}}>🎉 {year} Year in Review</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9,marginBottom:13}}>
+            <div className="yir-card">
+              <div className="yir-title">Total {year}</div>
+              <div className="yir-val">{sym}{yearTotal.toFixed(0)}</div>
+              <div className="yir-sub">{yearExp.length} expenses</div>
+            </div>
+            <div className="yir-card" style={{background:'linear-gradient(135deg,var(--ac3),#00796b)'}}>
+              <div className="yir-title">Personality</div>
+              <div className="yir-val" style={{fontSize:20}}>{spendPersonality}</div>
+              <div className="yir-sub">Top: {topCatObj?.label}</div>
+            </div>
+            <div className="yir-card" style={{background:'linear-gradient(135deg,var(--ac4),#e65100)'}}>
+              <div className="yir-title">Monthly Avg</div>
+              <div className="yir-val">{sym}{avgMonth.toFixed(0)}</div>
+              <div className="yir-sub">per month</div>
+            </div>
+            <div className="yir-card" style={{background:'linear-gradient(135deg,#ef5350,#b71c1c)'}}>
+              <div className="yir-title">Biggest Expense</div>
+              <div className="yir-val">{sym}{yearExp.length?Math.max(...yearExp.map(e=>conv(e.amount,e.currency||'USD'))).toFixed(0):0}</div>
+              <div className="yir-sub">single purchase</div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Stats */}
+      <div className="statgrid">
+        {[
+          {l:'Total Spent',v:`${sym}${totalSpent.toFixed(2)}`},
+          {l:'Expenses',v:expenses.length},
+          {l:'Avg/Expense',v:expenses.length?`${sym}${(totalSpent/expenses.length).toFixed(2)}`:'-'},
+          {l:'People',v:people.length},
+        ].map(s=>(
+          <div key={s.l} className="statbox"><div className="statlabel">{s.l}</div><div className="statval">{s.v}</div></div>
+        ))}
+      </div>
+
+      {/* Monthly */}
+      <div className="card">
+        <div className="stitle" style={{fontSize:14,marginBottom:11}}>📅 Monthly Spending</div>
+        {sortedMonths.length===0?<div style={{fontSize:13,color:'var(--t3)'}}>No data yet</div>:sortedMonths.map(([k,v])=>(
+          <div key={k} className="mrow">
+            <div style={{fontSize:13,fontWeight:600}}>{fmkey(k)}</div>
+            <div style={{display:'flex',alignItems:'center',gap:9}}>
+              <div style={{width:70,height:5,background:'var(--c3)',borderRadius:3,overflow:'hidden'}}>
+                <div style={{width:`${(v/maxMonth)*100}%`,height:'100%',background:'var(--ac)',borderRadius:3}}/>
+              </div>
+              <div style={{fontWeight:700,fontSize:14,color:'var(--ac)',minWidth:55,textAlign:'right'}}>{sym}{v.toFixed(2)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Categories */}
+      <div className="card">
+        <div className="stitle" style={{fontSize:14,marginBottom:11}}>🏷️ By Category</div>
+        {CATS.map(c=>{
+          const v=catTotals[c.id]||0;const limit=budgets[c.id];const over=limit&&v>=limit;
+          return(
+            <div key={c.id} className="barrow">
+              <div className="barlabel">{c.emoji} {c.label}</div>
+              <div className="bartrack"><div className="barfill" style={{width:`${(v/maxCat)*100}%`,background:over?'var(--rd)':catColors[c.id]}}/></div>
+              <div className="barval">{sym}{v.toFixed(0)}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Budget */}
+      <div className="card">
+        <div className="stitle" style={{fontSize:14,marginBottom:11}}>💰 Budget Tracker</div>
+        {CATS.filter(c=>budgets[c.id]).map(c=>{
+          const spent=catTotals[c.id]||0;const limit=budgets[c.id];
+          const pct=Math.min((spent/limit)*100,100);const over=spent>=limit;const warn=pct>=80;
+          return(
+            <div key={c.id} className="budrow">
+              <div className="budhdr">
+                <span style={{fontWeight:600}}>{c.emoji} {c.label}</span>
+                <span style={{color:over?'var(--rd)':warn?'var(--yw)':'var(--t2)'}}>{sym}{spent.toFixed(0)} / {sym}{limit}</span>
+              </div>
+              <div className="budbar"><div className="budfill" style={{width:`${pct}%`,background:over?'var(--rd)':warn?'var(--yw)':'var(--gr)'}}/></div>
+            </div>
+          );
+        })}
+        {!Object.keys(budgets).length&&<div style={{fontSize:13,color:'var(--t3)',marginBottom:9}}>No budgets set yet.</div>}
+        <button className="btn btn-ol" style={{marginTop:8}} onClick={()=>{setBudInp({...budgets});setShowBudget(true);}}>⚙️ Set Budgets</button>
+      </div>
+
+      {/* Heatmap */}
+      <div className="card">
+        <div className="stitle" style={{fontSize:14,marginBottom:7}}>📅 Activity Heatmap (35 days)</div>
+        <div className="hmap">
+          {heatmap.map((h,i)=>(
+            <div key={i} className="hcell" title={`${h.date}: ${h.count}`}
+              style={{background:h.count===0?'var(--c3)':`rgba(123,111,240,${0.2+(h.count/maxHeat)*.8})`}}/>
+          ))}
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:5,fontSize:10,color:'var(--t3)'}}>
+          <span>35 days ago</span><span>Today</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="stitle">Quick Actions</div>
+      <div className="btn-row" style={{marginBottom:9}}>
+        <button className="btn" style={{flex:1}} onClick={doPDF}>📄 PDF</button>
+        <button className="btn btn-bl" style={{flex:1}} onClick={()=>{
+          const d=JSON.stringify({expenses,people},null,2);
+          const b=new Blob([d],{type:'application/json'});
+          const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='splitease.json';a.click();
+          showToast('📦 JSON exported!');
+        }}>📦 JSON</button>
+      </div>
+      <div className="btn-row">
+        <button className="btn btn-ol" style={{flex:1}} onClick={doNotif}>🔔 Notify</button>
+        <button className="btn btn-ol" style={{flex:1}} onClick={doQR}>📱 QR Share</button>
+      </div>
+
+      {showBudget&&(
+        <div className="moverlay" onClick={()=>setShowBudget(false)}>
+          <div className="mbox" onClick={e=>e.stopPropagation()}>
+            <div className="mhandle"/>
+            <div className="mtitle">Set Monthly Budgets</div>
+            <div className="msub">Get alerted when 80% of budget is reached.</div>
+            {CATS.map(c=>(
+              <div key={c.id} className="field">
+                <label>{c.emoji} {c.label} limit</label>
+                <input className="finp" type="number" step="1" placeholder="No limit" value={budInp[c.id]||''} onChange={e=>setBudInp(p=>({...p,[c.id]:e.target.value}))}/>
+              </div>
+            ))}
+            <div className="btn-row">
+              <button className="btn" onClick={saveBudgets}>Save Budgets</button>
+              <button className="btn btn-ol btn-sm" onClick={()=>setShowBudget(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── MORE TAB ───────────────────────────────────────── */
+function MoreTab({theme,setTheme,baseCur,setBaseCur,pinOn,setPinOn,pin,setPin,activity,syncSt,people,setPeople,expenses,setExpenses,setIous,setActivity,doPDF,doQR,doNotif,showToast,addAct,setGroups,setActiveGroupId}){
+  const[showPin,setShowPin]=useState(false);
+  const[newPin,setNewPin]=useState('');
+  const[showPeople,setShowPeople]=useState(false);
+  const[pname,setPname]=useState('');
+  const[pemail,setPemail]=useState('');
+  const[pphone,setPphone]=useState('');
+  const[activeGroupId2,setActiveGroupId2]=useState(null);
+  const[selGroup,setSelGroup]=useState('');
+  const[groups2,setGroups2]=useState([]);
+
+  useEffect(()=>{
+    try{const d=JSON.parse(localStorage.getItem('se_v4')||'{}');if(d.groups)setGroups2(d.groups);if(d.activeGroupId)setSelGroup(d.activeGroupId||'');}catch(_){}
+  },[]);
+
+  const addPerson=()=>{
+    if(!pname.trim()){showToast('⚠️ Enter name');return;}
+    if(people.some(p=>p.name.toLowerCase()===pname.trim().toLowerCase()&&(!selGroup||p.groupId===selGroup))){showToast('⚠️ Name exists in this group');return;}
+    const p={id:String(Date.now()),name:pname.trim(),email:pemail.trim(),phone:pphone.trim(),groupId:selGroup||null};
+    setPeople(prev=>[...prev,p]);
+    setPname('');setPemail('');setPphone('');
+    showToast(`✅ ${p.name} added!`);addAct('👤',`Added ${p.name}`);
+  };
+
+  const removePerson=(id)=>{
+    const hasExp=expenses.some(e=>String(e.paidBy)===String(id)||e.splitWith.map(String).includes(String(id)));
+    if(hasExp){showToast('⚠️ Person has expenses — cannot remove');return;}
+    const p=people.find(x=>String(x.id)===String(id));
+    setPeople(prev=>prev.filter(x=>String(x.id)!==String(id)));
+    showToast(`🗑️ ${p?.name} removed`);
+  };
+
+  const setupPIN=()=>{
+    if(newPin.length!==4){showToast('⚠️ PIN must be 4 digits');return;}
+    setPin(newPin);setPinOn(true);setShowPin(false);setNewPin('');
+    showToast('🔒 PIN enabled!');
+  };
+
+  const clearAll=()=>{
+    if(!window.confirm('Delete ALL data permanently?'))return;
+    setPeople([]);setExpenses([]);setIous([]);setActivity([]);setGroups([]);setActiveGroupId(null);
+    localStorage.clear();showToast('🗑️ All data cleared');
+  };
+
+  const filteredPeople=selGroup?people.filter(p=>p.groupId===selGroup):people;
+
+  return(
+    <div className="fade-in">
+      <div className="stitle">More</div>
+
+      {/* People management */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:11}}>👥 People Management</div>
+
+        <div className="field">
+          <label>Group</label>
+          <select className="finp" value={selGroup} onChange={e=>setSelGroup(e.target.value)}>
+            <option value="">All Groups</option>
+            {groups2.map(g=><option key={g.id} value={g.id}>{g.emoji} {g.name}</option>)}
+          </select>
+        </div>
+
+        <div className="r2" style={{marginBottom:8}}>
+          <div className="field"><label>Name *</label><input className="finp" placeholder="Full name" value={pname} onChange={e=>setPname(e.target.value)} onKeyPress={e=>e.key==='Enter'&&addPerson()}/></div>
+          <div className="field"><label>Email</label><input className="finp" type="email" placeholder="email@..." value={pemail} onChange={e=>setPemail(e.target.value)}/></div>
+        </div>
+        <div className="field"><label>Phone</label><input className="finp" type="tel" placeholder="+1 234 567 8900" value={pphone} onChange={e=>setPphone(e.target.value)}/></div>
+        <button className="btn" style={{marginBottom:11}} onClick={addPerson}>+ Add Person</button>
+
+        {filteredPeople.length===0&&<div style={{fontSize:13,color:'var(--t3)'}}>No people {selGroup?'in this group':'yet'}.</div>}
+        {filteredPeople.map((p,i)=>{
+          const gr=grad(i);
+          const expCount=expenses.filter(e=>String(e.paidBy)===String(p.id)||e.splitWith.map(String).includes(String(p.id))).length;
+          const gname=groups2.find(g=>String(g.id)===String(p.groupId))?.name;
+          return(
+            <div key={p.id} className="pcard">
+              <div className="av av40" style={{background:`linear-gradient(135deg,${gr[0]},${gr[1]})`}}>{p.name[0].toUpperCase()}</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
+                <div style={{fontSize:11,color:'var(--t2)',marginTop:2}}>
+                  {p.email&&<span>{p.email} · </span>}{expCount} expenses
+                  {gname&&<span> · {gname}</span>}
+                </div>
+              </div>
+              <button className="btn btn-rd btn-xs" onClick={()=>removePerson(p.id)}>✕</button>
+            </div>
+          );
+        })}
+
+        {/* Invite */}
+        {people.length>0&&(
+          <div style={{marginTop:11}}>
+            <div style={{fontSize:12,fontWeight:700,color:'var(--t2)',marginBottom:8}}>INVITE VIA</div>
+            <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+              {['📱 WhatsApp','💬 SMS','📧 Email','🔗 Copy Link'].map(m=>(
+                <button key={m} className="btn btn-ol btn-xs" onClick={()=>showToast(`📤 Opening ${m.split(' ')[1]}...`)}>{m}</button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Appearance */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:11}}>🎨 Appearance</div>
+        <div className="chips">
+          {['dark','light'].map(t=><div key={t} className={`chip ${theme===t?'on':''}`} onClick={()=>{setTheme(t);showToast(`${t==='dark'?'🌙':'☀️'} ${t} mode`);}}>{t==='dark'?'🌙 Dark':'☀️ Light'}</div>)}
+        </div>
+      </div>
+
+      {/* Currency */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:11}}>💱 Base Currency</div>
+        <div className="chips">
+          {CURRENCIES.map(c=><div key={c.code} className={`chip ${baseCur===c.code?'on':''}`} onClick={()=>{setBaseCur(c.code);showToast(`💱 ${c.code}`);}}>
+            {c.flag} {c.code}
+          </div>)}
+        </div>
+      </div>
+
+      {/* Security */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:11}}>🔒 Security</div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:pinOn?10:0}}>
+          <div>
+            <div style={{fontWeight:600}}>PIN Lock</div>
+            <div style={{fontSize:12,color:'var(--t2)'}}>Require PIN to open app</div>
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            {pinOn&&<button className="btn btn-rd btn-xs" onClick={()=>{setPinOn(false);setPin('');showToast('🔓 PIN off');}}>Off</button>}
+            <button className={`btn btn-xs ${pinOn?'btn-ol':'btn-gr'}`} onClick={()=>setShowPin(true)}>{pinOn?'Change':'Enable'}</button>
+          </div>
+        </div>
+        {pinOn&&<div className="infobox succbox" style={{marginBottom:0}}>🔒 PIN is active</div>}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:11}}>⚡ Quick Actions</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          {[
+            {l:'📄 Export PDF',a:doPDF},
+            {l:'📱 QR Code',a:doQR},
+            {l:'🔔 Notifications',a:doNotif},
+            {l:'📦 Export JSON',a:()=>{const d=JSON.stringify({people,expenses},null,2);const b=new Blob([d],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='splitease.json';a.click();showToast('📦 Exported!');}},
+          ].map(a=><button key={a.l} className="btn btn-ol" style={{fontSize:12,padding:10}} onClick={a.a}>{a.l}</button>)}
+        </div>
+      </div>
+
+      {/* Sync info */}
+      <div className="card">
+        <div style={{display:'flex',alignItems:'center',gap:9}}>
+          <span className={`sdot ${syncSt==='live'?'live':'sync'}`}/>
+          <span style={{fontWeight:600,fontSize:14}}>{syncSt==='live'?'Saved locally':'Syncing...'}</span>
+          <span style={{marginLeft:'auto',fontSize:11,color:syncSt==='live'?'var(--gr)':'var(--yw)',fontWeight:700,padding:'2px 8px',borderRadius:10,background:syncSt==='live'?'rgba(76,175,130,.1)':'rgba(255,202,40,.1)'}}>{syncSt==='live'?'LIVE':'...'}</span>
+        </div>
+        <div style={{fontSize:12,color:'var(--t2)',marginTop:8}}>All data stored on your device. Use QR to share across devices.</div>
+      </div>
+
+      {/* Activity */}
+      <div className="card">
+        <div style={{fontSize:13,fontWeight:700,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:11}}>📋 Activity Feed</div>
+        {activity.length===0&&<div style={{fontSize:13,color:'var(--t3)'}}>No activity yet.</div>}
+        {activity.slice(0,15).map(a=>(
+          <div key={a.id} className="act-item">
+            <div className="act-dot">{a.emoji}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13}}>{a.text}</div>
+              <div className="act-time">{fdate(a.time)} {ftime(a.time)}</div>
+            </div>
+          </div>
+        ))}
+        {activity.length>15&&<div style={{fontSize:12,color:'var(--t3)',marginTop:6,textAlign:'center'}}>+{activity.length-15} more</div>}
+      </div>
+
+      {/* Danger zone */}
+      <div className="card card-danger">
+        <div style={{fontSize:13,fontWeight:700,color:'var(--rd)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:11}}>⚠️ Danger Zone</div>
+        <button className="btn btn-rd" onClick={clearAll}>🗑️ Clear All Data</button>
+      </div>
+
+      <div style={{textAlign:'center',padding:'18px 0 6px',fontSize:12,color:'var(--t3)'}}>
+        SplitEase Pro v4.0 · Built with ❤️<br/>
+        <span style={{fontSize:10}}>Offline-first PWA · All data on your device</span>
+      </div>
+
+      {/* PIN modal */}
+      {showPin&&(
+        <div className="moverlay center" onClick={()=>setShowPin(false)}>
+          <div className="mbox ctr" onClick={e=>e.stopPropagation()}>
+            <div className="mtitle">🔒 Set PIN</div>
+            <div className="msub">Choose a 4-digit PIN to lock the app.</div>
+            <div className="field"><label>4-Digit PIN</label><input className="finp" type="password" maxLength={4} pattern="[0-9]*" inputMode="numeric" placeholder="••••" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,'').slice(0,4))}/></div>
+            <div className="btn-row">
+              <button className="btn btn-gr" onClick={setupPIN}>Set PIN</button>
+              <button className="btn btn-ol btn-sm" onClick={()=>setShowPin(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.render(<App/>,document.getElementById('root'));
+</script>
+</body>
+</html>
